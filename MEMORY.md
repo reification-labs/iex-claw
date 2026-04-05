@@ -10,7 +10,16 @@ An Elixir agent framework where any model can think through any soul. The soul l
 
 Ratified 2026-04-05. Pro-switchboard, not anti-anyone.
 
+<<<<<<< HEAD
 ## Architecture (current, Apr 5)
+=======
+## Active Projects (Apr 5)
+- **IExClaw** — Elixir agent framework. 4 agents live (MemoryPruner, TodoList, Project, AgentLogger). All `.exs`, standalone, composable. GLM-5 Turbo workhorse. 12 open tasks. `projects/iex-claw/`. Port to Jido 2.2.0 + Ash later.
+- **Reification Labs launch** — PTO Apr 1-14, signups by Apr 15. LinkedIn draft ready.
+- **VHAI Newsletter** — Issue #1 "The Pickpocket Problem" drafted.
+- **XClaw Games** — warcraftlogs for AI coding. Fresh concept.
+- **Anthropic lockout** — `claude-cli/*` works for now. Sub-agents → OpenRouter. Z.AI GLM Coding Plan as backup.
+>>>>>>> 79d2b29 (daily: Apr 5 session — IExClaw baby crabs, USER.md refresh, agent logging)
 
 ### Agents
 - **Code** — LLM agent (GLM-5 Turbo). Builder. 20KB .exs, partially rewired to lib/.
