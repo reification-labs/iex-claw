@@ -1,8 +1,8 @@
 # REPL mode (IEx integration)
 
-**Status:** todo
+**Status:** done
 **Tags:** agent, ux
-**Created:** 2026-04-05 04:33 UTC
+**Created:** 2026-04-05 05:14 UTC
 
 ## Description
 

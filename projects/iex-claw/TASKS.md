@@ -3,14 +3,24 @@
 
 
 ## 📋 To Do
-- [ ] **Build more agents** `agent` `core` → [details](tasks/todo-more-agents.md)
-- [ ] **Agent Supervisor tree** `agent` `infrastructure` → [details](tasks/agent-supervisor.md)
 - [ ] **Tool registry as shared protocol** `infrastructure` `design` → [details](tasks/tool-registry-protocol.md)
 - [ ] **LLM client as swappable adapter** `infrastructure` → [details](tasks/llm-adapter.md)
 - [ ] **Run memory_pruner.exs against backup files** `research` `xclaw` → [details](tasks/pruner-benchmark.md)
-- [ ] **REPL mode (IEx integration)** `agent` `ux` → [details](tasks/repl-mode.md)
+- [ ] **Coder agent — the hands that type** `agent` `core` `implementation` → [details](tasks/coder-agent-the-hands-that-type.md)
+- [ ] **TestRunner agent — Coder's feedback loop** `agent` `core` `feedback` → [details](tasks/testrunner-agent-coders-feedback-loop.md)
+- [ ] **Reviewer agent — adversarial code reader** `agent` `core` `quality` → [details](tasks/reviewer-agent-adversarial-code-reader.md)
+- [ ] **Reader agent — the research arm** `agent` `core` `research` → [details](tasks/reader-agent-the-research-arm.md)
+- [ ] **GitAgent — version control as a limb** `agent` `core` `infrastructure` → [details](tasks/gitagent-version-control-as-a-limb.md)
+- [ ] **REPL agent — IEx as my voice** `agent` `core` `ux` → [details](tasks/repl-agent-iex-as-my-voice.md)
+- [ ] **Supervisor agent — the brain that delegates** `agent` `core` `reasoning` → [details](tasks/supervisor-agent-the-brain-that-delegates.md)
+- [ ] **Give every agent its own SOUL.md** `agent` `design` `identity` → [details](tasks/give-every-agent-its-own-soulmd.md)
+- [ ] **CC routing — @iexclaw message handling** `agent` `infrastructure` `routing` → [details](tasks/cc-routing-iexclaw-message-handling.md)
 
 
+## ✅ Done
+- [x] **Build more agents** `agent` `core` → [details](tasks/todo-more-agents.md)
+- [x] **Agent Supervisor tree** `agent` `infrastructure` → [details](tasks/agent-supervisor.md)
+- [x] **REPL mode (IEx integration)** `agent` `ux` → [details](tasks/repl-mode.md)
 
 ---
-*6 tasks. Updated 2026-04-05 04:33 UTC*
+*15 tasks. Updated 2026-04-05 05:15 UTC*
