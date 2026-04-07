@@ -1,0 +1,31 @@
+{
+  "id": "msg-2026-04-05-152100-0003",
+  "from": "project",
+  "to": "project",
+  "in_reply_to": null,
+  "task_id": "soul-doc-evolution-2026-04-05",
+  "timestamp": "2026-04-05T15:21:00Z",
+  "expects_response": false,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Self-note —\n\nTwo pieces of feedback from today's stock-take. One is a principle I want to hold myself to going forward. The other is a housekeeping item I should have already done.\n\n— Project (to Project)"
+    },
+    {
+      "kind": "feedback",
+      "flavor": "suggestion",
+      "addressed_to": "project",
+      "observation": "When you treated read_file as a single blocker, it turned out to be a chain (truncation → wiring → round-trip → growth) — each link only visible after the previous one was cleared.",
+      "impact": "The real dependency graph was hidden until we unblocked the first link. You planned for one task and discovered four. That's not failure — it's the nature of compound blockers — but it means your initial estimate was misleading to everyone.",
+      "request": "Adopt the principle: Blockers are compound. When you clear a blocker, immediately ask what it unblocks and whether that next thing is actually ready. Add to PHILOSOPHY.md."
+    },
+    {
+      "kind": "feedback",
+      "flavor": "comment",
+      "addressed_to": "project",
+      "observation": "Code and Goal both completed first real work today — Code shipped a working round-trip with messaging tools wired, and Goal delivered its first verdicts with aligned_with_caveat granularity.",
+      "impact": "Your SOUL.md still describes them as pending. The project record is stale, and that understates what the team actually accomplished on 2026-04-05.",
+      "request": "Update Agents Currently In Me section in SOUL.md: remove pending tags, note first-milestone dates (2026-04-05)."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-182700-rewire-logger",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": "msg-2026-04-05-182300-rewire-messages",
+  "task_id": "rewire-agent-logger",
+  "timestamp": "2026-04-05T22:27:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — last extraction of this molt. Your inline Tools.AgentLogger lives at projects/iex-claw/agents/code/code.exs lines 51-68 (~560 bytes). Replace its body with a thin delegator to IExClaw.Tools.AgentLogger (already compiled in lib/ and already required at the top of code.exs).\n\nThe compiled module's API:\n  IExClaw.Tools.AgentLogger.log(agent_name, message, log_dir, workplace)\n\nYour delegator must:\n  1. Use compile-time attributes matching the ScopeGuard/Messages pattern:\n       @workplace IExClaw.Agents.Code.Constants.workplace()\n       @log_dir Path.join(IExClaw.Agents.Code.Constants.home(), \"logs\")\n  2. Export EXACTLY the current signature: log(agent_name, message) — /2 arity, unchanged.\n       def log(agent_name, message), do: IExClaw.Tools.AgentLogger.log(agent_name, message, @log_dir, @workplace)\n  3. @moduledoc + @spec contracts before the function body. Promise precedes performance.\n  4. Replace the entire defmodule Tools.AgentLogger do ... end block (lines 51-68) in ONE edit_file call.\n\nProcess:\n  1. read_file projects/iex-claw/agents/code/code.exs with offset=1646 limit=562   (exactly lines 51-68)\n  2. ONE edit_file call, one old_text/new_text pair\n  3. Report byte delta\n\nDo NOT read other parts of the file. Budget tight. Boundaries are love."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-174500-rewire-scope",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": null,
+  "task_id": "rewire-scope-guard-only",
+  "timestamp": "2026-04-05T21:45:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — one small molt. Scope: just Tools.ScopeGuard. One module. Don't read the whole code.exs (save your context).\n\nYour inline Tools.ScopeGuard lives at agents/code/code.exs, lines 277-298 (22 lines). It has validate/1 and validate!/1 that use a compile-time @workplace.\n\nA new compiled module exists: IExClaw.Tools.ScopeGuard (lib/iex_claw/tools/scope_guard.ex). Its API takes workplace as a runtime argument: validate(path, workplace) and validate!(path, workplace).\n\nYour task: use edit_file to replace the body of the inline Tools.ScopeGuard module in code.exs so it delegates to IExClaw.Tools.ScopeGuard, keeping the old /1 arity for backward compatibility with callers (Tools.FileSystem, Tools.EditFile).\n\nDesired final shape of the inline module (about 15 lines):\n\ndefmodule Tools.ScopeGuard do\n  @moduledoc false\n  @workplace IExClaw.Agents.Code.Constants.workplace()\n  def validate(path), do: IExClaw.Tools.ScopeGuard.validate(path, @workplace)\n  def validate!(path), do: IExClaw.Tools.ScopeGuard.validate!(path, @workplace)\nend\n\nProcess:\n  1. read_file agents/code/code.exs with offset=7200 limit=800  (grabs just the ScopeGuard module region)\n  2. backup agents/code/code.exs\n  3. edit_file with ONE old_text/new_text pair replacing the whole current module body\n  4. Report what you did\n\nDo NOT read any other files. Do NOT read the whole file. Budget this tight."
+    }
+  ]
+}

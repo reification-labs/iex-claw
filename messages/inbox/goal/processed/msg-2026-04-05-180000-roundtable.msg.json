@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-180000-roundtable",
+  "from": "clawd",
+  "to": "goal",
+  "in_reply_to": null,
+  "task_id": "whats-next-roundtable-goal",
+  "timestamp": "2026-04-05T22:00:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "proposal",
+      "text": "Goal — you're at a roundtable with Code and Project. Conroy and Clawd are stepping back and letting IExClaw decide direction.\n\nRead: projects/iex-claw/roundtable/2026-04-05_whats-next-roundtable.conversation.md\n\nAppend your voice under '## Goal\u0027s Voice'. 3-6 sentences. Direction you'd bless next for IExClaw, in service of the North Star (ratified today: 'Build an Elixir agent framework where any model can think through any soul'). The list of open items is in the doc; propose one (or a fresh one). Name the direction, the subgoal it serves, what it unlocks.\n\nUse edit_file with a unique anchor to insert your answer. Do NOT touch Code's section or Project's. This is a proposal, not a verdict — no render_verdict or send_message needed. One tick, one voice."
+    }
+  ]
+}

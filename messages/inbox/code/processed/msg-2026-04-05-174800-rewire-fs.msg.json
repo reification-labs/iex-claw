@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-174800-rewire-fs",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": "msg-2026-04-05-174500-rewire-scope",
+  "task_id": "rewire-file-system",
+  "timestamp": "2026-04-05T21:48:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — next molt. Same pattern as ScopeGuard: your inline Tools.FileSystem lives at code.exs lines 289-391 (~100 lines). Replace its body with thin delegations to IExClaw.Tools.FileSystem, passing @workplace as the second argument on every call.\n\nThe compiled module's API (same names, one extra arg):\n  IExClaw.Tools.FileSystem.read_file_raw(path, workplace)\n  IExClaw.Tools.FileSystem.read_file(path, workplace, offset \\\\ 0, limit \\\\ 8000)\n  IExClaw.Tools.FileSystem.write_file(path, workplace, content, overwrite \\\\ false)\n  IExClaw.Tools.FileSystem.list_dir(path, workplace)\n  IExClaw.Tools.FileSystem.file_size(path, workplace)\n  IExClaw.Tools.FileSystem.backup(path, workplace)\n\nPreserve your inline module's current /1, /3, /2, /1, /1, /1 arities (external callers unchanged). Use a compile-time @workplace attribute like ScopeGuard does.\n\nProcess:\n  1. read_file projects/iex-claw/agents/code/code.exs with offset=7600 limit=3600  (covers lines 289-391)\n  2. edit_file with ONE old_text/new_text pair replacing the whole Tools.FileSystem module body\n  3. Report size delta\n\nDo NOT read other parts of the file. Budget tight."
+    }
+  ]
+}

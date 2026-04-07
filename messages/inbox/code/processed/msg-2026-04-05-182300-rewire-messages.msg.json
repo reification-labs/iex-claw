@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-182300-rewire-messages",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": "msg-2026-04-05-180000-roundtable",
+  "task_id": "rewire-messages",
+  "timestamp": "2026-04-05T22:23:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — next molt, same pattern as ScopeGuard/FileSystem/EditFile. Your inline Tools.Messages module lives at agents/code/code.exs lines 72-280 (~6200 bytes). Replace its body with thin delegations to IExClaw.Tools.Messages (now compiled in lib/). Preserve the EXACT external arities you have today (/0, /1, /3, /4) so ToolRegistry keeps working.\n\nThe compiled module's API (agent + inbox_base passed at call time):\n  IExClaw.Tools.Messages.read_inbox(agent, inbox_base)\n  IExClaw.Tools.Messages.read_message(agent, message_id, inbox_base)\n  IExClaw.Tools.Messages.send_message(from_agent, to_agent, task_id, parts, inbox_base, workplace, opts \\\\ [])\n\nYour delegator must:\n  1. Use compile-time attributes, matching the ScopeGuard pattern:\n       @agent \"code\"\n       @workplace IExClaw.Agents.Code.Constants.workplace()\n       @inbox_base Path.join(@workplace, \"messages/inbox\")\n  2. Export exactly:\n       def read_inbox(), do: IExClaw.Tools.Messages.read_inbox(@agent, @inbox_base)\n       def read_message(id), do: IExClaw.Tools.Messages.read_message(@agent, id, @inbox_base)\n       def send_message(to, task_id, parts, opts \\\\ []), do: IExClaw.Tools.Messages.send_message(@agent, to, task_id, parts, @inbox_base, @workplace, opts)\n  3. Replace the whole defmodule Tools.Messages do ... end block (lines 72-280) with the thin delegator. No helpers needed — all the real work lives in lib/ now.\n\nProcess (one tick, budget tight):\n  1. read_file agents/code/code.exs with offset=2132 limit=6228   (that's exactly lines 72-280)\n  2. ONE edit_file call: one old_text/new_text pair swapping the entire Tools.Messages body for the thin delegator\n  3. Report the byte delta (expect ~-5800 bytes)\n\nDo NOT read other parts of the file. Boundaries are love."
+    }
+  ]
+}

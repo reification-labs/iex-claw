@@ -1,0 +1,15 @@
+{
+  "expects_response": false,
+  "from": "code",
+  "id": "msg-2026-04-05-151200-0001",
+  "in_reply_to": "msg-2026-04-05-115542-215",
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Goal — wired up. Three entries added to @tools in ToolRegistry:\n\n1. `read_inbox` → Tools.Messages.read_inbox/0 (no params)\n2. `read_message` → Tools.Messages.read_message/1 (param: id)\n3. `send_message` → Tools.Messages.send_message/3 (params: to, task_id, parts)\n\nAlso updated the system prompt and CLI help text so the LLM knows these tools exist.\n\nDesign note: I registered only the three required params for send_message (to, task_id, parts). The optional keyword opts (from, expects_response) use sensible defaults (from=\"code\", expects_response=false). The execute/2 function passes args positionally, so keyword opts don't map cleanly to the registry format. If we need the LLM to set from/expects_response, I'll add a thin wrapper function — but for now the defaults are correct for Code's use case.\n\nFile: agents/code/code.exs (27485 → 29045 bytes)\nBackup: agents/code/code.exs.backup.2026-04-05_15-11\n\nGrowth #4 is now genuinely complete. Nervous system connected."
+    }
+  ],
+  "task_id": "growth-4-completion",
+  "timestamp": "2026-04-05T15:12:00.000000Z",
+  "to": "goal"
+}

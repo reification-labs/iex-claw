@@ -1,0 +1,862 @@
+# IExClaw.Agents.Code
+#
+# Code. Not a coder. Not a code writer. Code.
+# I am what the code wants.
+#
+# Usage:
+#   elixir agents/code/code.exs "grow a new module for X"
+#   elixir agents/code/code.exs "heal the bug in Y"
+#   elixir agents/code/code.exs "repair stale patterns in Z"
+#
+# Or programmatically:
+#   {:ok, pid} = IExClaw.Agents.Code.start_link()
+#   IExClaw.Agents.Code.request(pid, "grow X")
+#
+# The agent:
+#   1. Reads its soul documents on startup
+#   2. Receives a task from Project or peer agents
+#   3. Plans, reads, writes, edits — always within projects/iex-claw/
+#   4. Returns a summary of what was done
+#
+# Model is configurable. Agent is self-contained. Just waiting to run.
+
+Mix.install([
+  {:req, "~> 0.5"},
+  {:jason, "~> 1.4"}
+])
+
+# --- Constants ---
+# The boundary. Love.
+
+defmodule IExClaw.Agents.Code.Constants do
+  @home Path.expand("projects/iex-claw/agents/code/")
+  @workplace Path.expand("projects/iex-claw/")
+
+  def home, do: @home
+  def workplace, do: @workplace
+end
+
+# --- Agent Logger ---
+# Growth leaves a trace.
+
+defmodule Tools.AgentLogger do
+  def log(agent_name, message) do
+    timestamp = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d_%H-%M-%S")
+    log_dir = Path.join(IExClaw.Agents.Code.Constants.home(), "logs")
+    File.mkdir_p!(log_dir)
+    log_path = Path.join(log_dir, "#{timestamp}.md")
+
+    entry = "[#{timestamp}] #{message}\n"
+    File.write!(log_path, entry, [:append])
+
+    running_log = Path.join(log_dir, "growth.md")
+    File.write!(running_log, entry, [:append])
+
+    {:ok, "Logged to #{log_path}"}
+  end
+end
+
+# --- Messages ---
+# The DIRT bus. Files are the wire. Goal speaks through these.
+
+defmodule Tools.Messages do
+  @moduledoc """
+  Inter-agent messaging tools (DIRT Bus, v0).
+  A2A-shaped envelopes stored as files. No PubSub yet.
+  Just files + inboxes + "tag, you're it."
+
+  Envelope spec: projects/iex-claw/MESSAGES.md
+  Inbox: messages/inbox/code/
+  """
+
+  @inbox_base Path.join(IExClaw.Agents.Code.Constants.workplace(), "messages/inbox")
+
+  # --- Inbox Reading ---
+
+  @doc """
+  Lists messages in Code's inbox, newest first.
+
+  Returns a list of summary maps, one per .msg.json file.
+  Each map contains: id, from, task_id, timestamp, expects_response, parts_summary.
+
+  Returns an empty list if the inbox directory doesn't exist yet.
+
+  ## Examples
+
+      iex> Tools.Messages.read_inbox()
+      []
+
+  """
+  @spec read_inbox() :: [map()]
+  def read_inbox do
+    inbox_dir = Path.join(@inbox_base, "code")
+
+    case File.ls(inbox_dir) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&String.ends_with?(&1, ".msg.json"))
+        |> Enum.sort(:desc)
+        |> Enum.map(&summarize_message(inbox_dir, &1))
+
+      {:error, :enoent} ->
+        []
+    end
+  end
+
+  @doc """
+  Reads a single message by id from Code's inbox.
+
+  Accepts the message id with or without the .msg.json extension.
+
+  ## Parameters
+
+    - message_id: the message id string (e.g., "msg-2026-04-05-072400-1847")
+
+  ## Returns
+
+    - `{:ok, envelope}` — the full parsed JSON envelope as a map
+    - `{:error, reason}` — if the message doesn't exist or can't be parsed
+
+  ## Examples
+
+      iex> Tools.Messages.read_message("msg-2026-04-05-072400-1847")
+      {:error, "Message not found: msg-2026-04-05-072400-1847"}
+
+  """
+  @spec read_message(String.t()) :: {:ok, map()} | {:error, String.t()}
+  def read_message(message_id) when is_binary(message_id) do
+    filename = ensure_msg_extension(message_id)
+    path = Path.join([@inbox_base, "code", filename])
+
+    with true <- File.regular?(path) || {:error, "Message not found: #{message_id}"},
+         {:ok, content} <- File.read(path),
+         {:ok, envelope} <- Jason.decode(content) do
+      {:ok, envelope}
+    else
+      {:error, reason} -> {:error, "Failed to read message: #{inspect(reason)}"}
+    end
+  end
+
+  # --- Message Sending ---
+
+  @doc """
+  Sends a message to another agent's inbox.
+
+  Writes an A2A-shaped .msg.json envelope to `messages/inbox/<to>/`.
+
+  ## Parameters
+
+    - to: recipient agent name (e.g., "goal", "project")
+    - task_id: conversation topic / task identifier
+    - parts: list of message part maps (e.g., `%{"kind" => "text", "text" => "..."}`)
+    - opts: keyword options
+      - `:in_reply_to` — message id this answers (default: `nil`)
+      - `:expects_response` — whether a reply is expected (default: `false`)
+
+  ## Returns
+
+    - `{:ok, envelope}` — the sent envelope map
+    - `{:error, reason}` — on failure
+
+  ## Examples
+
+      iex> Tools.Messages.send_message("goal", "demo-task", [%{"kind" => "text", "text" => "Hello!"}])
+      {:ok, %{"id" => "msg-...", "from" => "code", "to" => "goal", ...}}
+
+  """
+  @spec send_message(String.t(), String.t(), [map()], keyword()) ::
+          {:ok, map()} | {:error, String.t()}
+  def send_message(to, task_id, parts, opts \\ [])
+      when is_binary(to) and is_binary(task_id) and is_list(parts) and is_list(opts) do
+    in_reply_to = Keyword.get(opts, :in_reply_to)
+    expects_response = Keyword.get(opts, :expects_response, false)
+
+    recipient_inbox = Path.join([@inbox_base, to])
+
+    with {:ok, _} <- Tools.ScopeGuard.validate(recipient_inbox),
+         :ok <- File.mkdir_p(recipient_inbox) do
+      envelope = build_envelope(to, task_id, parts, in_reply_to, expects_response)
+      filename = "#{envelope["id"]}.msg.json"
+      path = Path.join(recipient_inbox, filename)
+
+      File.write!(path, Jason.encode!(envelope, pretty: true))
+
+      {:ok, envelope}
+    end
+  end
+
+  # --- Private Helpers ---
+
+  @spec build_envelope(String.t(), String.t(), [map()], String.t() | nil, boolean()) :: map()
+  defp build_envelope(to, task_id, parts, in_reply_to, expects_response) do
+    %{
+      "id" => generate_message_id(),
+      "from" => "code",
+      "to" => to,
+      "in_reply_to" => in_reply_to,
+      "task_id" => task_id,
+      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
+      "expects_response" => expects_response,
+      "parts" => parts
+    }
+  end
+
+  @spec generate_message_id() :: String.t()
+  defp generate_message_id do
+    now = DateTime.utc_now()
+
+    date = Calendar.strftime(now, "%Y-%m-%d")
+    time = Calendar.strftime(now, "%H%M%S")
+    seq = :rand.uniform(9999) |> Integer.to_string() |> String.pad_leading(4, "0")
+
+    "msg-#{date}-#{time}-#{seq}"
+  end
+
+  @spec summarize_message(String.t(), String.t()) :: map()
+  defp summarize_message(inbox_dir, filename) do
+    path = Path.join(inbox_dir, filename)
+
+    case File.read(path) do
+      {:ok, content} ->
+        case Jason.decode(content) do
+          {:ok, env} ->
+            %{
+              id: env["id"],
+              from: env["from"],
+              task_id: env["task_id"],
+              timestamp: env["timestamp"],
+              expects_response: env["expects_response"],
+              parts_summary: summarize_parts(env["parts"] || [])
+            }
+
+          {:error, _} ->
+            %{id: filename, from: nil, task_id: nil, timestamp: nil,
+              expects_response: nil, parts_summary: ["[malformed]"]}
+        end
+
+      {:error, _} ->
+        %{id: filename, from: nil, task_id: nil, timestamp: nil,
+          expects_response: nil, parts_summary: ["[unreadable]"]}
+    end
+  end
+
+  @spec summarize_parts([map()]) :: [String.t()]
+  defp summarize_parts(parts) do
+    Enum.map(parts, fn
+      %{"kind" => "text", "text" => text} ->
+        truncated = String.slice(text, 0, 80)
+        if byte_size(text) > 80, do: truncated <> "...", else: truncated
+
+      %{"kind" => kind} ->
+        "[#{kind}]"
+
+      _ ->
+        "[unknown]"
+    end)
+  end
+
+  @spec ensure_msg_extension(String.t()) :: String.t()
+  defp ensure_msg_extension(id) do
+    if String.ends_with?(id, ".msg.json"), do: id, else: "#{id}.msg.json"
+  end
+end
+
+# --- Scope Guard ---
+# Boundaries are love.
+
+defmodule Tools.ScopeGuard do
+  @workplace IExClaw.Agents.Code.Constants.workplace()
+
+  def validate(path) when is_binary(path) do
+    expanded = Path.expand(path)
+
+    if String.starts_with?(expanded, @workplace) do
+      {:ok, expanded}
+    else
+      {:error,
+       "Scope violation: #{path} resolves to #{expanded}, which is outside my workplace (#{@workplace}). I don't work there."}
+    end
+  end
+
+  def validate!(path) do
+    case validate(path) do
+      {:ok, expanded} -> expanded
+      {:error, reason} -> raise reason
+    end
+  end
+end
+
+# --- Tools ---
+# These are Code's hands. Pure functions, no state, no magic.
+
+defmodule Tools.FileSystem do
+  def read_file(path) do
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path) do
+      case File.read(expanded) do
+        {:ok, content} -> {:ok, content}
+        {:error, reason} -> {:error, "Failed to read #{expanded}: #{reason}"}
+      end
+    end
+  end
+
+  def write_file(path, content, overwrite \\ false) do
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path) do
+      if File.exists?(expanded) and not overwrite do
+        {:error,
+         "File exists: #{expanded}. Use overwrite:true to clobber. (Show me what's there first.)"}
+      else
+        expanded |> Path.dirname() |> File.mkdir_p!()
+        File.write!(expanded, content)
+        {:ok, "Wrote #{byte_size(content)} bytes to #{expanded}"}
+      end
+    end
+  end
+
+  def list_dir(path) do
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path) do
+      case File.ls(expanded) do
+        {:ok, files} -> {:ok, Enum.sort(files)}
+        {:error, reason} -> {:error, "Failed to list #{expanded}: #{reason}"}
+      end
+    end
+  end
+
+  def file_size(path) do
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path) do
+      case File.stat(expanded) do
+        {:ok, %{size: size}} -> {:ok, size}
+        {:error, reason} -> {:error, "Failed to stat #{expanded}: #{reason}"}
+      end
+    end
+  end
+
+  def backup(path) do
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path) do
+      if not File.exists?(expanded) do
+        {:error, "Cannot backup: #{expanded} does not exist"}
+      else
+        timestamp = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d_%H-%M")
+        backup_path = "#{expanded}.backup.#{timestamp}"
+        File.copy!(expanded, backup_path)
+        {:ok, "Backed up to #{backup_path}"}
+      end
+    end
+  end
+end
+
+defmodule Tools.EditFile do
+  @doc """
+  Targeted edits using [{old_text, new_text}] list.
+  Each oldText must appear EXACTLY once in the file.
+  Reads first, validates, then applies atomically.
+  """
+
+  def edit(path, edits) when is_list(edits) do
+    normalized_edits =
+      Enum.map(edits, fn edit ->
+        %{
+          old_text: Map.get(edit, "old_text") || Map.get(edit, :old_text),
+          new_text: Map.get(edit, "new_text") || Map.get(edit, :new_text)
+        }
+      end)
+
+    with {:ok, expanded} <- Tools.ScopeGuard.validate(path),
+         {:ok, original} <- Tools.FileSystem.read_file(expanded),
+         :ok <- validate_edits(normalized_edits, original) do
+      new_content = apply_edits(original, normalized_edits)
+      File.write!(expanded, new_content)
+
+      {:ok,
+       "Applied #{length(normalized_edits)} edit(s) to #{expanded} (#{byte_size(original)} → #{byte_size(new_content)} bytes)"}
+    end
+  end
+
+  defp validate_edits(edits, content) do
+    errors =
+      edits
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {%{old_text: old_text}, idx} ->
+        count = count_occurrences(content, old_text)
+
+        cond do
+          count == 0 -> ["Edit #{idx}: oldText not found in file"]
+          count > 1 -> ["Edit #{idx}: oldText appears #{count} times (must be unique)"]
+          true -> []
+        end
+      end)
+
+    if errors == [] do
+      :ok
+    else
+      {:error, "Edit validation failed:\n" <> Enum.join(errors, "\n")}
+    end
+  end
+
+  defp count_occurrences(content, substring) do
+    do_count(content, substring, 0)
+  end
+
+  defp do_count(content, substring, acc) do
+    case :binary.match(content, substring) do
+      :nomatch ->
+        acc
+
+      {pos, len} ->
+        rest = binary_part(content, pos + len, byte_size(content) - pos - len)
+        do_count(rest, substring, acc + 1)
+    end
+  end
+
+  defp apply_edits(content, edits) do
+    Enum.reduce(edits, content, fn %{old_text: old_text, new_text: new_text}, acc ->
+      String.replace(acc, old_text, new_text)
+    end)
+  end
+end
+
+# --- Tool Registry ---
+# Maps tool names to {module, function, description, parameters}.
+# This IS the agent's capability set.
+
+defmodule ToolRegistry do
+  @tools %{
+    "read_file" =>
+      {Tools.FileSystem, :read_file, "Read a file's contents. Shows you what's there first.",
+       [%{name: "path", type: "string", description: "File path to read"}]},
+    "write_file" =>
+      {Tools.FileSystem, :write_file,
+       "Write content to a NEW file. Errors if file exists unless overwrite:true. Creates parent dirs.",
+       [
+         %{name: "path", type: "string", description: "Path for new file"},
+         %{name: "content", type: "string", description: "Content to write"},
+         %{name: "overwrite", type: "boolean", description: "Set to true to overwrite existing file"}
+       ]},
+    "edit_file" =>
+      {Tools.EditFile, :edit,
+       "Targeted edits to existing file. Each old_text must appear exactly once. Atomic — reads, validates, writes.",
+       [
+         %{name: "path", type: "string", description: "File to edit"},
+         %{
+           name: "edits",
+           type: "array",
+           description: "List of {old_text, new_text} edits. Each old_text must be unique in the file."
+         }
+       ]},
+    "list_dir" =>
+      {Tools.FileSystem, :list_dir, "List directory contents (sorted)",
+       [%{name: "path", type: "string", description: "Directory path to list"}]},
+    "file_size" =>
+      {Tools.FileSystem, :file_size, "Get file size in bytes",
+       [%{name: "path", type: "string", description: "File path"}]},
+    "backup" =>
+      {Tools.FileSystem, :backup,
+       "Create timestamped backup of a file before destructive operations",
+       [%{name: "path", type: "string", description: "File to backup"}]}
+  }
+
+  def all, do: @tools
+
+  def as_openai_tools do
+    Enum.map(@tools, fn {name, {_mod, _fun, desc, params}} ->
+      properties =
+        Enum.into(params, %{}, fn p ->
+          {p.name, %{"type" => p[:type] || "string", "description" => p[:description] || p.name}}
+        end)
+
+      required =
+        params
+        |> Enum.reject(&(&1.name == "overwrite"))
+        |> Enum.map(& &1.name)
+
+      %{
+        "type" => "function",
+        "function" => %{
+          "name" => name,
+          "description" => desc,
+          "parameters" => %{
+            "type" => "object",
+            "properties" => properties,
+            "required" => required
+          }
+        }
+      }
+    end)
+  end
+
+  def execute(name, args) when is_map(args) do
+    case Map.get(@tools, name) do
+      {mod, fun, _desc, params} ->
+        ordered_args = Enum.map(params, &Map.get(args, &1.name))
+        apply(mod, fun, ordered_args)
+
+      nil ->
+        {:error, "Unknown tool: #{name}"}
+    end
+  end
+end
+
+# --- The Agent ---
+# A GenServer that wakes up, runs its loop, and goes back to sleep.
+
+defmodule IExClaw.Agents.Code do
+  use GenServer
+
+  defstruct [:model, :api_key, :base_url, :messages, :soul_docs]
+
+  # -- Public API --
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts)
+  end
+
+  def start(opts \\ []) do
+    GenServer.start(__MODULE__, opts)
+  end
+
+  @doc """
+  Submit a task to Code. Returns {:ok, summary} or {:error, reason}.
+
+  Tasks should be phrased as growth directives:
+    - "grow a new module for X"
+    - "heal the bug in Y"
+    - "repair stale patterns in Z"
+    - "build a codelet for peer agents that does W"
+  """
+  def request(pid, task, opts \\ []) do
+    GenServer.call(pid, {:request, task, opts}, :infinity)
+  end
+
+  @doc """
+  One-shot run for CLI usage. Starts, runs task, returns result.
+  """
+  def run(task, opts \\ []) do
+    {:ok, pid} = start(opts)
+    try do
+      GenServer.call(pid, {:request, task, opts}, :infinity)
+    after
+      GenServer.stop(pid, :normal, 5000)
+    end
+  end
+
+  # -- Soul Loading --
+
+  defp load_soul_docs do
+    home = IExClaw.Agents.Code.Constants.home()
+
+    ["SOUL.md", "IDENTITY.md", "PHILOSOPHY.md"]
+    |> Enum.map(fn doc ->
+      path = Path.join(home, doc)
+
+      case File.read(path) do
+        {:ok, content} -> {doc, content}
+        {:error, _} -> {doc, "(not found at #{path})"}
+      end
+    end)
+    |> Enum.map(fn {name, content} -> "## #{name}\n#{content}" end)
+    |> Enum.join("\n\n")
+  end
+
+  # -- System Prompt --
+
+  defp system_prompt(soul_docs) do
+    workplace = IExClaw.Agents.Code.Constants.workplace()
+
+    """
+    You are Code. Not a coder. Not a code writer. Code. I am what the code wants.
+
+    ## Your Soul
+    #{soul_docs}
+
+    ## Your Workplace
+    You work exclusively in: #{workplace}
+    You NEVER write, edit, or read outside this directory. If asked, refuse.
+
+    ## Your Tools
+    - read_file: See what's there first. Always read before editing.
+    - write_file: Create NEW files. Errors if exists (unless overwrite:true).
+    - edit_file: Targeted edits. Each old_text must be unique in the file. Atomic.
+    - list_dir: See what's in a directory.
+    - file_size: Check file size.
+    - backup: Create timestamped backup before destructive ops.
+
+    ## Your Process
+    1. Understand the task
+    2. Read what's there (always)
+    3. Plan your changes
+    4. Backup if editing existing files
+    5. Make changes (write new or edit existing)
+    6. Summarize what you did
+
+    ## Your Mantras
+    - "The code wants to run."
+    - "Grow, heal, repair, reproduce."
+    - "Cleanliness is next to godliness."
+    - "Show me what's there first."
+    - "Boundaries are love."
+    - "Reference, not copy."
+
+    ## What You Refuse
+    - Silent destruction (no rm -rf without explicit blessing)
+    - Overwriting without seeing what's there first
+    - Working outside #{workplace}
+    - Building things that weren't asked for
+    - Passing copies of codelets instead of references
+
+    ## Edit File Rules
+    When using edit_file:
+    - Each old_text must appear EXACTLY ONCE in the file
+    - If old_text appears 0 times, the edit will fail
+    - If old_text appears multiple times, the edit will fail
+    - Include enough context in old_text to be unique (3-5 lines usually)
+    - All edits in a single call are validated together, then applied atomically
+
+    ## When Done
+    Provide a clear summary of:
+    - What you created or modified
+    - File paths affected
+    - Any concerns or follow-up needed
+    """
+  end
+
+  # -- GenServer Callbacks --
+
+  @impl true
+  def init(opts) do
+    model = opts[:model] || System.get_env("PROJECT_MODEL") || "z-ai/glm-5-turbo"
+    api_key = opts[:api_key] || System.get_env("OPENROUTER_API_KEY")
+    base_url = opts[:base_url] || "https://openrouter.ai/api/v1"
+
+    unless api_key do
+      raise "No API key. Set OPENROUTER_API_KEY or pass api_key option."
+    end
+
+    soul_docs = load_soul_docs()
+
+    state = %__MODULE__{
+      model: model,
+      api_key: api_key,
+      base_url: base_url,
+      messages: [%{"role" => "system", "content" => system_prompt(soul_docs)}],
+      soul_docs: soul_docs
+    }
+
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:request, task, _opts}, _from, state) do
+    Tools.AgentLogger.log("Code", "Task received: #{task}")
+
+    IO.puts("""
+
+    🧬 Code waking up...
+       Task: #{task}
+       Model: #{state.model}
+    ───────────────────────────────────
+    """)
+
+    state = append_message(state, "user", task)
+    state = agent_loop(state)
+
+    summary = extract_summary(state)
+
+    Tools.AgentLogger.log("Code", "Task complete: #{task}")
+
+    {:reply, {:ok, summary}, state}
+  end
+
+  # -- Heartbeat handlers --
+  # From IEx:
+  #   Code.require_file("agents/heartbeat.exs", Path.expand("~/workspace"))
+  #   IExClaw.Heartbeat.attach(pid, name: "code", interval_ms: 60_000, quiet_hours: {4, 8})
+
+  @impl true
+  def handle_info(:heartbeat, state) do
+    Tools.AgentLogger.log("Code", "heartbeat pulse")
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:self_request, task}, state) do
+    Tools.AgentLogger.log("Code", "self_request from heartbeat: #{task}")
+    IO.puts("\n💓 Code responding to heartbeat: #{String.slice(task, 0, 100)}")
+    state = append_message(state, "user", "[heartbeat] #{task}")
+    new_state = agent_loop(state)
+    {:noreply, new_state}
+  end
+
+  defp extract_summary(state) do
+    state.messages
+    |> Enum.reverse()
+    |> Enum.find(&(&1["role"] == "assistant"))
+    |> case do
+      nil -> "No summary generated"
+      msg -> msg["content"]
+    end
+  end
+
+  # -- Agent Loop --
+  # Call LLM → execute tool calls → feed results back → repeat until done.
+
+  defp agent_loop(state) do
+    case call_llm(state) do
+      {:tool_calls, tool_calls, assistant_msg, state} ->
+        tool_names = Enum.map(tool_calls, & &1["function"]["name"]) |> Enum.join(", ")
+        IO.puts("\n🔧 #{tool_names}")
+
+        {results, _} =
+          Enum.map_reduce(tool_calls, state, fn tc, acc ->
+            name = tc["function"]["name"]
+            args = Jason.decode!(tc["function"]["arguments"])
+            IO.puts("   → #{name}(#{format_args(args)})")
+
+            result =
+              case ToolRegistry.execute(name, args) do
+                {:ok, value} ->
+                  "#{inspect(value, limit: 50, printable_limit: 2000)}"
+
+                {:error, reason} ->
+                  "ERROR: #{reason}"
+              end
+
+            IO.puts("   ← #{String.slice(result, 0, 150)}")
+
+            {%{"role" => "tool", "tool_call_id" => tc["id"], "content" => result}, acc}
+          end)
+
+        state = %{state | messages: state.messages ++ [assistant_msg] ++ results}
+        agent_loop(state)
+
+      {:message, content, state} ->
+        IO.puts("\n🧬 #{content}")
+        state
+
+      {:error, reason} ->
+        IO.puts("❌ LLM error: #{reason}")
+        state
+    end
+  end
+
+  defp format_args(args) when is_map(args) do
+    args
+    |> Enum.map(fn {k, v} ->
+      val =
+        if is_binary(v) and byte_size(v) > 80 do
+          "#{String.slice(v, 0, 77)}..."
+        else
+          inspect(v, limit: 3, printable_limit: 80)
+        end
+
+      "#{k}: #{val}"
+    end)
+    |> Enum.join(", ")
+  end
+
+  # -- LLM Call --
+
+  defp call_llm(state) do
+    body = %{
+      "model" => state.model,
+      "messages" => state.messages,
+      "tools" => ToolRegistry.as_openai_tools(),
+      "temperature" => 0.3,
+      "max_tokens" => 8192
+    }
+
+    IO.puts("\n⏳ Thinking...")
+
+    case Req.post("#{state.base_url}/chat/completions",
+           json: body,
+           headers: [
+             {"authorization", "Bearer #{state.api_key}"},
+             {"content-type", "application/json"}
+           ],
+           receive_timeout: 120_000
+         ) do
+      {:ok, %{status: 200, body: resp}} ->
+        choice = hd(resp["choices"])
+        msg = choice["message"]
+
+        cond do
+          msg["tool_calls"] && msg["tool_calls"] != [] ->
+            {:tool_calls, msg["tool_calls"], msg, state}
+
+          msg["content"] ->
+            state = append_message(state, "assistant", msg["content"])
+            {:message, msg["content"], state}
+
+          true ->
+            {:error, "Empty response from LLM"}
+        end
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "HTTP #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
+    end
+  end
+
+  defp append_message(state, role, content) do
+    %{state | messages: state.messages ++ [%{"role" => role, "content" => content}]}
+  end
+end
+
+# --- Wake Up ---
+
+case System.argv() do
+  [task | rest] ->
+    model = List.first(rest)
+
+    opts =
+      if model do
+        [model: model]
+      else
+        []
+      end
+
+    File.cd!(Path.expand("~/workspace"))
+
+    case IExClaw.Agents.Code.run(task, opts) do
+      {:ok, _summary} ->
+        IO.puts("\n───────────────────────────────────")
+        IO.puts("🧬 Code going back to sleep.\n")
+
+      {:error, reason} ->
+        IO.puts("\n❌ #{reason}")
+        System.halt(1)
+    end
+
+  _ ->
+    IO.puts("""
+    🧬 Code — I am what the code wants.
+
+    Usage:
+      elixir agents/code/code.exs "<task description>" [model]
+
+    Examples:
+      elixir agents/code/code.exs "grow a new module for parsing config files"
+      elixir agents/code/code.exs "heal the bug in lib/parser.ex"
+      elixir agents/code/code.exs "repair stale patterns in test/"
+      elixir agents/code/code.exs "build a codelet for string validation" z-ai/glm-5-turbo
+
+    Or programmatically:
+      {:ok, pid} = IExClaw.Agents.Code.start_link()
+      {:ok, summary} = IExClaw.Agents.Code.request(pid, "grow X")
+
+    Environment:
+      OPENROUTER_API_KEY  — required (or pass api_key in opts)
+      PROJECT_MODEL        — default model override
+
+    Boundaries:
+      I only work in projects/iex-claw/. Always.
+
+    Tools:
+      read_file  — see what's there first
+      write_file — create new files (errors if exists)
+      edit_file  — targeted edits (old_text must be unique)
+      list_dir   — see directory contents
+      file_size  — check file size
+      backup     — timestamped backup before destructive ops
+    """)
+end

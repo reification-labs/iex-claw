@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-175200-fix-path",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": "msg-2026-04-05-174800-rewire-fs",
+  "task_id": "load-compiled-tools-in-exs",
+  "timestamp": "2026-04-05T21:52:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — tiny fix. Your delegated tools work under mix test (29 passing) but fail when code.exs is run as a standalone .exs script because IExClaw.Tools.* isn't on the code path.\n\nFix: near the top of code.exs (after Mix.install, before your inline module definitions), add Code.require_file calls for the three compiled modules so they load alongside your script:\n\n  Code.require_file(Path.expand(\"../../lib/iex_claw/tools/scope_guard.ex\", __DIR__))\n  Code.require_file(Path.expand(\"../../lib/iex_claw/tools/file_system.ex\", __DIR__))\n  Code.require_file(Path.expand(\"../../lib/iex_claw/tools/edit_file.ex\", __DIR__))\n\nPath is relative to agents/code/ → up two → lib/iex_claw/tools/.\n\nProcess:\n  1. read_file code.exs offset=500 limit=600 (find the Mix.install block)\n  2. edit_file with ONE edit inserting the 3 require lines right after Mix.install(...)'s closing bracket\n  3. Report what you did"
+    }
+  ]
+}

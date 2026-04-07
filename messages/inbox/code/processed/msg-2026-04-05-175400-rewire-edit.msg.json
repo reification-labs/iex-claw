@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-05-175400-rewire-edit",
+  "from": "clawd",
+  "to": "code",
+  "in_reply_to": "msg-2026-04-05-175200-fix-path",
+  "task_id": "rewire-edit-file",
+  "timestamp": "2026-04-05T21:54:00Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "directive",
+      "text": "Code — last molt in this chain. Tools.EditFile, lines 309-382 (~74 lines). Same delegation pattern.\n\nCompiled API:\n  IExClaw.Tools.EditFile.edit(path, workplace, edits)\n\nYour inline edit/2 should become:\n  def edit(path, edits) when is_list(edits), do: IExClaw.Tools.EditFile.edit(path, @workplace, edits)\n\nUse compile-time @workplace via IExClaw.Agents.Code.Constants.workplace().\n\nProcess:\n  1. read_file code.exs offset=8600 limit=2800 (covers Tools.EditFile region)\n  2. edit_file with ONE edit replacing the whole Tools.EditFile module body\n  3. Report size delta\n\nBudget tight. One tick."
+    }
+  ]
+}
