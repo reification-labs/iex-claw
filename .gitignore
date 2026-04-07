@@ -2,6 +2,7 @@
 vendors/
 tmp/
 logs/
+_build/
 .DS_Store
 node_modules/
 __pycache__/
