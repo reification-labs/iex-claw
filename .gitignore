@@ -1,0 +1,9 @@
+# Bloat/OS S clones (submodule optional)
+vendors/
+tmp/
+logs/
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+*.log
