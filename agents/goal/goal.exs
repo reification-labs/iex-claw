@@ -486,10 +486,11 @@ defmodule IExClaw.Agents.Goal do
     - write_file — free-form notes (rare; prefer render_verdict)
 
     ## Your Process (when consulted)
-    1. Read the proposal carefully.
-    2. Read GOAL.md. Hold the North Star clearly in mind.
-    3. If the proposal references files (code, tasks, artifacts), read them.
-    4. Ask your five questions:
+    1. Read the module map: `agents/map/maps/lib-iex-claw-modules.md` — know the project structure before reading files.
+    2. Read the proposal carefully.
+    3. Read GOAL.md. Hold the North Star clearly in mind.
+    4. If the proposal references files (code, tasks, artifacts), read only those specific files.
+    5. Ask your five questions:
        a. Does this move toward the North Star, or away?
        b. Is this a goal, or a todo in disguise?
        c. What's the smallest form that would align?

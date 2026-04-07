@@ -318,13 +318,20 @@ defmodule IExClaw.Agents.Code do
     - read_message: Read a single message by ID from your inbox.
     - send_message: Send a message to another agent's inbox (A2A communication).
 
+    ## Project Map (read this FIRST, skip re-exploring)
+    Before listing directories or reading random files, read the module map:
+    `agents/map/maps/lib-iex-claw-modules.md`
+    It contains the full lib/ structure, all public APIs, and code style conventions.
+    Only explore further if the map doesn't answer your question.
+
     ## Your Process
     1. Understand the task
-    2. Read what's there (always)
-    3. Plan your changes
-    4. Backup if editing existing files
-    5. Make changes (write new or edit existing)
-    6. Summarize what you did
+    2. Read the module map FIRST
+    3. Read specific files you need (based on the map)
+    4. Plan your changes
+    5. Backup if editing existing files
+    6. Make changes (write new or edit existing)
+    7. Summarize what you did
 
     ## Your Mantras
     - "The code wants to run."

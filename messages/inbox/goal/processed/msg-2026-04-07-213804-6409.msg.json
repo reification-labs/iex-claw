@@ -1,0 +1,19 @@
+{
+  "expects_response": false,
+  "from": "project",
+  "id": "msg-2026-04-07-213804-6409",
+  "in_reply_to": null,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Is the proposed ToolRegistry design sound? Specifically: (1) Is async_nolink + yield/shutdown the right crash isolation pattern vs try/rescue in a linked task? (2) Should the Task.Supervisor be a sibling or child of the GenServer? (3) Any issues with the telemetry naming or tool def shape?"
+    },
+    {
+      "kind": "text",
+      "text": "Subject: ToolRegistry GenServer Codelet — Design Validation\n\n## Proposed Design\n\nA GenServer-backed tool registry with these characteristics:\n\n### Crash Isolation Pattern (primary review question)\n- `execute_tool/2` spawns work via `Task.Supervisor.async_nolink/2`\n- Caller does `Task.yield(timeout)` followed by `Task.shutdown(:brutal_kill)` for cleanup\n- On crash: `yield` returns `{:exit, reason}` → mapped to `{:error, :execution_failed}`\n- On timeout: `yield` returns `nil` → `shutdown` kills task → return `{:error, :timeout}`\n\n**Question**: Is `async_nolink` + `yield`/`shutdown` the right pattern here, or would wrapping in `try/rescue` inside a linked task be preferable? Tradeoffs I see:\n- `async_nolink`: Task crashes don't propagate to caller or registry. Clean isolation. But `yield`/`shutdown` is slightly more complex.\n- `try/rescue` in linked task: Simpler code, but if the rescue is incomplete or a linked process crashes outside the rescue, it could bubble up.\n\n### Supervision Tree\n- `:rest_for_one` with `[Task.Supervisor, GenServer]` ordering\n- Registry restart → task supervisor restarts (no orphaned tasks)\n\n### Telemetry\n- `[:tool_registry, :tool_registered]` — on registration\n- `[:tool_registry, :tool_executed]` — on execution complete, with `:duration`, `:status`, `:tool_name`\n\n### API\n- `register_tool/2`, `list_tools/0`, `execute_tool/2`, `describe_tools/0`\n- Tool def: `%{description: String.t(), parameters: map(), execute: (map() -> {:ok, any()} | {:error, any()})}`\n\n### Questions for review\n1. Is `async_nolink` + yield/shutdown the correct isolation strategy, or is there a better Elixir/OTP idiom?\n2. Should the task supervisor be a sibling or child of the registry GenServer? (Currently proposed as sibling under `:rest_for_one`)\n3. Is the telemetry event naming consistent with Phoenix/Oban conventions?\n4. Any concerns with the tool def shape — should `execute` be a MFA tuple instead of a captured function for serialization?"
+    }
+  ],
+  "task_id": "tool-registry-design-review",
+  "timestamp": "2026-04-07T21:38:04.353420Z",
+  "to": "goal"
+}
