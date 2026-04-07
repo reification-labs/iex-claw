@@ -49,6 +49,7 @@ end
 
 # --- Agent Logger ---
 defmodule IExClaw.Agents.Project.Logger do
+  @moduledoc false
   alias IExClaw.Agents.Project.Constants
 
   @log_dir Path.join(Constants.home(), "logs")
@@ -61,10 +62,12 @@ end
 
 # --- Project Agent ---
 defmodule IExClaw.Agents.Project do
+  @moduledoc false
   alias IExClaw.Agents.Project.Constants
   alias IExClaw.Agents.Project.Logger
   alias IExClaw.LLMClient
-  alias IExClaw.Tools.{FileSystem, Messages}
+  alias IExClaw.Tools.FileSystem
+  alias IExClaw.Tools.Messages
 
   @agent_name "project"
   @model System.get_env("PROJECT_MODEL") || System.get_env("IEXCLAW_MODEL") || "z-ai/glm-5-turbo"
@@ -300,10 +303,10 @@ defmodule IExClaw.Agents.Project do
     ]
 
     parts =
-      if context != "" do
-        parts ++ [%{"kind" => "text", "text" => "Context:\n#{context}"}]
-      else
+      if context == "" do
         parts
+      else
+        parts ++ [%{"kind" => "text", "text" => "Context:\n#{context}"}]
       end
 
     case Messages.send_message(
@@ -386,7 +389,7 @@ defmodule IExClaw.Agents.Project do
   defp agent_loop(messages, tools, system, ctx, budget) when budget <= 0 do
     # Budget exhausted — return what we have
     last = List.last(messages)
-    content = last && last[:content] || last["content"] || "(no response)"
+    content = (last && last[:content]) || last["content"] || "(no response)"
     {:ok, String.slice(content, 0, 2000)}
   end
 
@@ -407,7 +410,7 @@ defmodule IExClaw.Agents.Project do
               fn_name = tc["function"]["name"]
               args = Jason.decode!(tc["function"]["arguments"])
 
-              Logger.log(@agent_name, "Tool call: #{fn_name}(#{inspect(args) |> String.slice(0, 120)})")
+              Logger.log(@agent_name, "Tool call: #{fn_name}(#{args |> inspect() |> String.slice(0, 120)})")
 
               result =
                 case execute_tool(fn_name, args, ctx) do
