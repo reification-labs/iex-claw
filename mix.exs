@@ -35,11 +35,10 @@ defmodule IExClaw.MixProject do
     ]
   end
 
-  # Stable PLT path + plt_add_apps: [:mix] per Elder Truman's wisdom.
-  # Without these, CI and local builds diverge and Dialyzer becomes noise.
+  # plt_add_apps: [:mix] per Elder Truman's wisdom.
+  # PLT lives in _build/ (cached in CI) instead of priv/plts/ (separate cache race).
   defp dialyzer do
     [
-      plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       plt_add_apps: [:mix]
     ]
   end
