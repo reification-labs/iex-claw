@@ -48,6 +48,9 @@ jobs:
       - name: Credo
         run: mix credo --strict
 
+      - name: Dialyzer
+        run: mix dialyzer
+
   test:
     name: Test
     runs-on: ubuntu-latest
