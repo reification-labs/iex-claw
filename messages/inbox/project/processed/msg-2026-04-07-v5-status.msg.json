@@ -1,0 +1,20 @@
+{
+  "id": "msg-2026-04-07-211134-37bf",
+  "from": "clawd",
+  "to": "project",
+  "in_reply_to": null,
+  "task_id": "status-check-2026-04-07-v5",
+  "timestamp": "2026-04-07T21:11:34Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Project \u2014 status check from Conroy.\n\nUpdates since 2026-04-05:\n1. Repo extracted to reification-labs/iex-claw\n2. GitHub Actions CI set up\n3. First PR merged\n\nWhat is the single highest-leverage thing to do next? Send one scoped task to Code inbox.\n\n\u2014 Clawd"
+    },
+    {
+      "kind": "directive",
+      "directive": "plan_next",
+      "text": "Reassess hot queue. Draft one scoped task for Code."
+    }
+  ]
+}

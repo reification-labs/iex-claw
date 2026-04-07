@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-07-211212-c496",
+  "from": "clawd",
+  "to": "project",
+  "task_id": "delegate-tdd-guardrails-2026-04-07",
+  "timestamp": "2026-04-07T21:12:12Z",
+  "expects_response": false,
+  "parts": [
+    {
+      "kind": "directive",
+      "directive": "delegate",
+      "text": "IMMEDIATE ACTION REQUIRED.\n\nThe TDD guardrails task on the kanban is the highest leverage item. The repo is now at reification-labs/iex-claw with CI running. Code should extract the shared tool modules (Tools.FileSystem, Tools.EditFile, Tools.Messages, Tools.ScopeGuard, Tools.AgentLogger) from agents/code/code.exs and agents/goal/goal.exs into dedicated files under lib/iex_claw/tools/ if not already there, then update both agents to import from lib.\n\nUse the send_to_code tool NOW with this exact task."
+    }
+  ]
+}
