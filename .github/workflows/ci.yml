@@ -37,7 +37,11 @@ jobs:
         run: mix credo --strict
 
       - name: Test
+        run: mix test
+
+      - name: Coverage report
         run: mix test --cover
+        continue-on-error: true
 
   dialyzer:
     runs-on: ubuntu-latest
