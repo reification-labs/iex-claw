@@ -81,7 +81,7 @@ defmodule IExClaw.Agent do
   @spec agent_loop(agent_state(), (String.t(), map() -> term()), keyword()) :: agent_state()
   def agent_loop(state, execute_fn, opts \\ []) do
     tools_schema = Keyword.get(opts, :tools_schema, [])
-    agent_name = Keyword.get(opts, :agent_name, "agent")
+    _agent_name = Keyword.get(opts, :agent_name, "agent")
     on_event = Keyword.get(opts, :on_event, IExClaw.RunLogger.noop())
     ctx = Keyword.get(opts, :event_context, %{})
 
