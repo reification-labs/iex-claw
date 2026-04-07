@@ -83,11 +83,13 @@ defmodule IExClaw.Contract do
   @doc "Start the contract. Returns the first mode."
   @spec start(t()) :: {:ok, t()}
   def start(%__MODULE__{status: :pending} = contract) do
-    contract = %{contract |
-      status: :active,
-      attempts: 1,
-      history: [%{event: :started, at: now(), attempt: 1} | contract.history]
+    contract = %{
+      contract
+      | status: :active,
+        attempts: 1,
+        history: [%{event: :started, at: now(), attempt: 1} | contract.history]
     }
+
     {:ok, contract}
   end
 
@@ -103,16 +105,15 @@ defmodule IExClaw.Contract do
     next_idx = idx + 1
 
     if next_idx >= length(modes) do
-      contract = %{contract |
-        status: :completed,
-        history: [%{event: :completed, at: now()} | contract.history]
-      }
+      contract = %{contract | status: :completed, history: [%{event: :completed, at: now()} | contract.history]}
       {:done, contract}
     else
-      contract = %{contract |
-        current_mode_index: next_idx,
-        history: [%{event: :advanced, to: Enum.at(modes, next_idx).name, at: now()} | contract.history]
+      contract = %{
+        contract
+        | current_mode_index: next_idx,
+          history: [%{event: :advanced, to: Enum.at(modes, next_idx).name, at: now()} | contract.history]
       }
+
       {:ok, contract}
     end
   end
@@ -123,19 +124,23 @@ defmodule IExClaw.Contract do
   """
   @spec budget_exhausted(t()) :: {:restart, t()} | {:failed, t()}
   def budget_exhausted(%__MODULE__{attempts: a, max_attempts: max} = contract) when a >= max do
-    contract = %{contract |
-      status: :failed,
-      history: [%{event: :failed, reason: :max_attempts, at: now()} | contract.history]
+    contract = %{
+      contract
+      | status: :failed,
+        history: [%{event: :failed, reason: :max_attempts, at: now()} | contract.history]
     }
+
     {:failed, contract}
   end
 
   def budget_exhausted(%__MODULE__{} = contract) do
-    contract = %{contract |
-      status: :restarting,
-      attempts: contract.attempts + 1,
-      history: [%{event: :restart, attempt: contract.attempts + 1, at: now()} | contract.history]
+    contract = %{
+      contract
+      | status: :restarting,
+        attempts: contract.attempts + 1,
+        history: [%{event: :restart, attempt: contract.attempts + 1, at: now()} | contract.history]
     }
+
     {:restart, contract}
   end
 
@@ -159,6 +164,7 @@ defmodule IExClaw.Contract do
   def summary(%__MODULE__{} = c) do
     mode = current_mode(c)
     mode_name = if mode, do: mode.name, else: :done
+
     "Contract[#{c.agent}←#{c.supervisor}] #{c.goal} | mode=#{mode_name} attempt=#{c.attempts}/#{c.max_attempts} status=#{c.status}"
   end
 

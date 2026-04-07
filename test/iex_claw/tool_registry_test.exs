@@ -5,14 +5,14 @@ defmodule IExClaw.ToolRegistryTest do
 
   # A stub tool module for testing
   defmodule StubTool do
+    @moduledoc false
     def greet(name), do: {:ok, "Hello, #{name}!"}
     def add(a, b), do: {:ok, a + b}
   end
 
   @tools %{
     "greet" =>
-      {StubTool, :greet, "Say hello to someone",
-       [%{name: "name", type: "string", description: "Who to greet"}]},
+      {StubTool, :greet, "Say hello to someone", [%{name: "name", type: "string", description: "Who to greet"}]},
     "add" =>
       {StubTool, :add, "Add two numbers",
        [

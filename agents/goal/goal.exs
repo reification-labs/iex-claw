@@ -562,7 +562,13 @@ defmodule IExClaw.Agents.Goal do
     """)
 
     state = IExClaw.Agent.append_message(state, "user", proposal)
-    state = IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2, tools_schema: ToolRegistry.as_openai_tools(), agent_name: "Goal")
+
+    state =
+      IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2,
+        tools_schema: ToolRegistry.as_openai_tools(),
+        agent_name: "Goal"
+      )
+
     summary = IExClaw.Agent.extract_summary(state)
 
     Tools.AgentLogger.log("Goal", "Consultation complete")
@@ -576,50 +582,49 @@ end
 
 # --- Wake Up ---
 
-unless System.get_env("IEXCLAW_GOAL_LIB") == "1" do
+if System.get_env("IEXCLAW_GOAL_LIB") != "1" do
+  case System.argv() do
+    [proposal | rest] ->
+      model = List.first(rest)
+      opts = if model, do: [model: model], else: []
+      File.cd!(Path.expand("~/workspace"))
 
-case System.argv() do
-  [proposal | rest] ->
-    model = List.first(rest)
-    opts = if model, do: [model: model], else: []
-    File.cd!(Path.expand("~/workspace"))
+      case IExClaw.Agents.Goal.run(proposal, opts) do
+        {:ok, _summary} ->
+          IO.puts("\n───────────────────────────────────")
+          IO.puts("⚖️  Goal going back to sleep.\n")
 
-    case IExClaw.Agents.Goal.run(proposal, opts) do
-      {:ok, _summary} ->
-        IO.puts("\n───────────────────────────────────")
-        IO.puts("⚖️  Goal going back to sleep.\n")
+        {:error, reason} ->
+          IO.puts("\n❌ #{reason}")
+          System.halt(1)
+      end
 
-      {:error, reason} ->
-        IO.puts("\n❌ #{reason}")
-        System.halt(1)
-    end
+    _ ->
+      IO.puts("""
+      ⚖️  Goal — IExClaw's conscience.
 
-  _ ->
-    IO.puts("""
-    ⚖️  Goal — IExClaw's conscience.
+      Usage:
+        elixir agents/goal/goal.exs "<proposal or consultation text>" [model]
 
-    Usage:
-      elixir agents/goal/goal.exs "<proposal or consultation text>" [model]
+      Examples:
+        elixir agents/goal/goal.exs "consult on: add a new Supervisor agent that..."
+        elixir agents/goal/goal.exs "read message: projects/iex-claw/messages/inbox/goal/msg-xxx.msg.json"
 
-    Examples:
-      elixir agents/goal/goal.exs "consult on: add a new Supervisor agent that..."
-      elixir agents/goal/goal.exs "read message: projects/iex-claw/messages/inbox/goal/msg-xxx.msg.json"
+      Environment:
+        OPENROUTER_API_KEY  — required
+        GOAL_MODEL           — default model override (falls back to PROJECT_MODEL, then glm-5-turbo)
 
-    Environment:
-      OPENROUTER_API_KEY  — required
-      GOAL_MODEL           — default model override (falls back to PROJECT_MODEL, then glm-5-turbo)
+      Authority:
+        Advisory only. I recommend; Project and Conroy decide.
 
-    Authority:
-      Advisory only. I recommend; Project and Conroy decide.
-
-    Tools:
-      read_file, list_dir, file_size   — see what's there
-      render_verdict                    — signature move (writes to ledger/verdicts/)
-      send_message                      — deliver replies (A2A-shaped envelope)
-      edit_file                         — targeted edits (prune GOAL.md)
-      write_file                        — free-form notes (rare)
-    """)
+      Tools:
+        read_file, list_dir, file_size   — see what's there
+        render_verdict                    — signature move (writes to ledger/verdicts/)
+        send_message                      — deliver replies (A2A-shaped envelope)
+        edit_file                         — targeted edits (prune GOAL.md)
+        write_file                        — free-form notes (rare)
+      """)
+  end
 end
 
-end  # unless IEXCLAW_GOAL_LIB
-
+# unless IEXCLAW_GOAL_LIB

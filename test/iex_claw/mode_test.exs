@@ -23,7 +23,7 @@ defmodule IExClaw.ModeTest do
     mode = Mode.new(:survey, tools: [:read_file, :list_dir, :submit_plan], output: :json_plan)
     filtered = Mode.filter_tools(mode, @full_tools)
 
-    assert Map.keys(filtered) |> Enum.sort() == ["list_dir", "read_file", "submit_plan"]
+    assert filtered |> Map.keys() |> Enum.sort() == ["list_dir", "read_file", "submit_plan"]
     refute Map.has_key?(filtered, "write_file")
     refute Map.has_key?(filtered, "edit_file")
   end

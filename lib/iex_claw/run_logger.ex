@@ -88,16 +88,18 @@ defmodule IExClaw.RunLogger do
     path = Path.join(dir, "#{run_id}.events.jsonl")
 
     event =
-      %{
-        ts: DateTime.utc_now() |> DateTime.to_iso8601(),
-        run_id: run_id,
-        seq: Map.get(context, :seq, 0),
-        agent: Map.get(context, :agent, "unknown"),
-        model: Map.get(context, :model, "unknown"),
-        event: event_type,
-        data: data
-      }
-      |> maybe_merge_context(context)
+      maybe_merge_context(
+        %{
+          ts: DateTime.to_iso8601(DateTime.utc_now()),
+          run_id: run_id,
+          seq: Map.get(context, :seq, 0),
+          agent: Map.get(context, :agent, "unknown"),
+          model: Map.get(context, :model, "unknown"),
+          event: event_type,
+          data: data
+        },
+        context
+      )
 
     line = Jason.encode!(event) <> "\n"
     File.write!(path, line, [:append])

@@ -69,17 +69,15 @@ defmodule IExClaw.Tools.Messages do
     filename = ensure_msg_extension(message_id)
     path = Path.join([inbox_base, agent, filename])
 
-    cond do
-      not File.regular?(path) ->
-        {:error, "Message not found: #{message_id}"}
-
-      true ->
-        with {:ok, content} <- File.read(path),
-             {:ok, envelope} <- Jason.decode(content) do
-          {:ok, envelope}
-        else
-          {:error, reason} -> {:error, "Failed to read message: #{inspect(reason)}"}
-        end
+    if File.regular?(path) do
+      with {:ok, content} <- File.read(path),
+           {:ok, envelope} <- Jason.decode(content) do
+        {:ok, envelope}
+      else
+        {:error, reason} -> {:error, "Failed to read message: #{inspect(reason)}"}
+      end
+    else
+      {:error, "Message not found: #{message_id}"}
     end
   end
 
@@ -106,8 +104,8 @@ defmodule IExClaw.Tools.Messages do
           keyword()
         ) :: {:ok, envelope()} | {:error, String.t()}
   def send_message(from_agent, to_agent, task_id, parts, inbox_base, workplace, opts \\ [])
-      when is_binary(from_agent) and is_binary(to_agent) and is_binary(task_id) and
-             is_list(parts) and is_binary(inbox_base) and is_binary(workplace) and is_list(opts) do
+      when is_binary(from_agent) and is_binary(to_agent) and is_binary(task_id) and is_list(parts) and
+             is_binary(inbox_base) and is_binary(workplace) and is_list(opts) do
     in_reply_to = Keyword.get(opts, :in_reply_to)
     expects_response = Keyword.get(opts, :expects_response, false)
 

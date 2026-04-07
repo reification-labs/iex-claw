@@ -7,7 +7,8 @@ defmodule IExClaw.Tools.EditFile do
   Extracted from agents/code/code.exs on 2026-04-05.
   """
 
-  alias IExClaw.Tools.{FileSystem, ScopeGuard}
+  alias IExClaw.Tools.FileSystem
+  alias IExClaw.Tools.ScopeGuard
 
   @type edit :: %{old_text: String.t(), new_text: String.t()} | %{String.t() => String.t()}
   @type result :: {:ok, String.t()} | {:error, String.t()}

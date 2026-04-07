@@ -30,8 +30,7 @@ defmodule IExClaw.Tools.AgentLogger do
   """
   @spec log(String.t(), String.t(), log_dir(), Path.t()) :: result()
   def log(agent_name, message, log_dir, workplace)
-      when is_binary(agent_name) and is_binary(message) and is_binary(log_dir) and
-             is_binary(workplace) do
+      when is_binary(agent_name) and is_binary(message) and is_binary(log_dir) and is_binary(workplace) do
     with {:ok, expanded_dir} <- ScopeGuard.validate(log_dir, workplace),
          :ok <- File.mkdir_p(expanded_dir) do
       timestamp = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d_%H-%M-%S")

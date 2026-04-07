@@ -5,6 +5,7 @@ defmodule IExClaw.Tick.PumpTest do
 
   # Stub tickables for testing
   defmodule Worker do
+    @moduledoc false
     @behaviour IExClaw.Tickable
 
     defstruct count: 0, target: 2
@@ -20,6 +21,7 @@ defmodule IExClaw.Tick.PumpTest do
   end
 
   defmodule Crasher do
+    @moduledoc false
     @behaviour IExClaw.Tickable
 
     defstruct []

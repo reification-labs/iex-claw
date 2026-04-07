@@ -30,35 +30,33 @@ defmodule IExClaw.Tick.Pump do
 
     result =
       Enum.reduce(children, initial, fn {name, mod, state}, acc ->
-        cond do
-          acc.budget <= 0 ->
-            %{acc | skipped: [name | acc.skipped], states: Map.put(acc.states, name, state)}
+        if acc.budget <= 0 do
+          %{acc | skipped: [name | acc.skipped], states: Map.put(acc.states, name, state)}
+        else
+          case safe_tick(mod, state, meta) do
+            {:work, summary, new_state} ->
+              %{
+                acc
+                | worked: [{name, summary} | acc.worked],
+                  budget: acc.budget - 1,
+                  states: Map.put(acc.states, name, new_state)
+              }
 
-          true ->
-            case safe_tick(mod, state, meta) do
-              {:work, summary, new_state} ->
-                %{
-                  acc
-                  | worked: [{name, summary} | acc.worked],
-                    budget: acc.budget - 1,
-                    states: Map.put(acc.states, name, new_state)
-                }
+            {:idle, new_state} ->
+              %{acc | idled: [name | acc.idled], states: Map.put(acc.states, name, new_state)}
 
-              {:idle, new_state} ->
-                %{acc | idled: [name | acc.idled], states: Map.put(acc.states, name, new_state)}
-
-              other ->
-                %{
-                  acc
-                  | worked: [{name, "⚠️  invalid tick response: #{inspect(other)}"} | acc.worked],
-                    states: Map.put(acc.states, name, state)
-                }
-            end
+            other ->
+              %{
+                acc
+                | worked: [{name, "⚠️  invalid tick response: #{inspect(other)}"} | acc.worked],
+                  states: Map.put(acc.states, name, state)
+              }
+          end
         end
       end)
 
     result
-    |> Map.drop([:budget])
+    |> Map.delete(:budget)
     |> Map.update!(:worked, &Enum.reverse/1)
     |> Map.update!(:idled, &Enum.reverse/1)
     |> Map.update!(:skipped, &Enum.reverse/1)
@@ -70,6 +68,7 @@ defmodule IExClaw.Tick.Pump do
   rescue
     e ->
       require Logger
+
       Logger.warning("Tick crashed for #{inspect(mod)}: #{Exception.message(e)}")
       {:work, "💥 crashed: #{Exception.message(e)}", state}
   end
