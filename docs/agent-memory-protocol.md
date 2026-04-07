@@ -1,200 +1,267 @@
 # Agent Memory Protocol
 
-Per-agent memory with three freshness tiers — short-term (inline), medium-term (referenced), archival (timestamped).
+Three-tier memory for IExClaw agents — session context, indexed recall, and deep archive.
 
 ## Motivation
 
-Each IExClaw agent needs persistent memory across sessions. The workspace root already uses `MEMORY.md` + `memory/` — this protocol recurses that pattern down to every agent. A flat memory dump wastes tokens; a pure archive is too slow to access. Three tiers balance *immediacy* against *cost*:
+Agents need memory that persists across sessions but doesn't waste every token on stale context. The workspace root already demonstrates the pattern: `MEMORY.md` as a lean index, `memories/` for daily logs, `checkpoints/` for deep snapshots. This protocol formalizes that pattern and extends it to per-agent memory.
 
-- **Short-term:** agent sees it every wake (high token cost, high relevance)
-- **Medium-term:** agent knows it exists, loads on demand (low token cost, moderate relevance)
-- **Archival:** agent must search to find it (zero token cost, discoverable)
+The three tiers balance *immediacy* against *cost*:
 
-This is a fractal of the workspace root `SOUL.md` + `MEMORY.md` pattern, one level down.
+| Tier | Visibility | Token cost | Consulted when |
+|------|-----------|------------|----------------|
+| Short-term | Embedded in prompt | High | Every wake |
+| Medium-term | Indexed, loaded on demand | Low | When relevant |
+| Long-term | Archived, searched on demand | Zero | When needed |
 
-**Cross-reference:** workspace root `MEMORY.md` and `SOUL.md` (the parent fractal). Task spec: `tasks/draft-agent-memory-protocol-three-tier-memory.md`.
+## Existing Patterns (Reference)
 
-## Directory Shape
+The workspace root already uses this model. These are the canonical examples:
 
+### Root `MEMORY.md` — the lean index
 ```
-agents/
-  trader/
-    SOUL.md              # agent identity + behavior
-    MEMORY.md            # memory index (inline + referenced entries)
-    memories/            # all memory files live here
-      20260405T1329_market-opened-bullish.memory.md
-      20260404T0912_portfolio-rebalanced.memory.md
-      20260401T1600_learned-slippage-pattern.memory.md
-  analyst/
-    SOUL.md
-    MEMORY.md
-    memories/
-      20260405T1400_earnings-q1-summary.memory.md
-      ...
+MEMORY.md              # ~100 lines. Active context, key decisions, open work.
 ```
+Structure: identity → north star → active projects → agents → architecture → decisions → principles → tests → open work → checkpoints. Acts as the *table of contents* for everything else.
 
-Each agent owns its `MEMORY.md` and `memories/`. No cross-agent memory sharing (yet) — that's coordination-layer territory.
+### `memories/` — daily logs
+```
+memories/2026-04-05.md   # Detailed session log: what happened, decisions, commits
+```
+Format: date-slugged markdown. One file per day. Rich narrative — the "journal."
+
+### `memory/` — daily logs (parallel)
+```
+memory/2026-04-05.md     # Same pattern, different session's log
+```
+Currently coexists with `memories/`. Both hold daily session logs. See [Open Questions](#open-questions) about consolidation.
+
+### `checkpoints/` — deep snapshots
+```
+checkpoints/2026-04-05_20-48_code-self-surgery-and-framework-emerges/
+```
+Timestamped directories capturing full state at a meaningful moment. Consulted for "what did the codebase look like then?"
 
 ## The Three Tiers
 
-### Tier 1: Short-term (Inline)
+### Tier 1: Short-term — Session Context
 
-The full content is embedded directly in `MEMORY.md` as a quoted block.
+**What it is:** Information the agent needs *every time it wakes up*. Embedded directly in the prompt via soul docs and the memory index.
 
-```markdown
-<!-- MEMORY.md -->
-## Active Context
+**Where it lives:**
+- `MEMORY.md` — the "Active Context" and "Key Decisions" sections
+- `SOUL.md` — identity and behavioral constants (never changes mid-project)
+- Agent prompt injection — whatever the supervisor passes in
 
-### Current Task: Q1 Portfolio Rebalance
-<!-- inline from memories/20260405T1329_market-opened-bullish.memory.md -->
-> Bullish open on AAPL, GOOG. Target allocation: 60/40 growth/value.
-> Slippage model updated per lesson from 20260401. Stop-loss at -2%.
-> <!-- end inline -->
-```
-
-**When to use:**
-- Active task context the agent needs every wake
-- Recent decisions that shape current behavior
-- Fresh learnings not yet internalized into patterns
-
-**Cost:** tokens in every prompt. Keep it lean — if MEMORY.md exceeds ~80 lines of inline content, it's time to demote.
-
-### Tier 2: Medium-term (Referenced)
-
-Listed by path with a one-line summary. Requires an explicit `read_file` to load.
+**Format:** Plain markdown sections within MEMORY.md. No separate files.
 
 ```markdown
-<!-- MEMORY.md -->
-## Referenced Memories
+<!-- MEMORY.md excerpt -->
+## Active Projects (Apr 5)
+- **IExClaw** — Elixir agent framework. 4 agents live. 12 open tasks.
+- **Reification Labs launch** — PTO Apr 1-14, signups by Apr 15.
 
-- `memories/20260404T0912_portfolio-rebalanced.memory.md` — Q1 rebalance: moved 20% from bonds to tech
-- `memories/20260401T1600_learned-slippage-pattern.memory.md` — Slippage spikes on low-volume altcoins; use limit orders
+## Key Decisions
+- **Roundtable 2026-04-05**: Neither Jido nor Ash. Extract to lib/.
 ```
 
-**When to use:**
-- Project history that may become relevant again
-- Past decisions with ongoing consequences
-- Learned patterns that apply to future but not every session
+**When consulted:** Every wake. This is the first thing an agent reads.
 
-**Cost:** ~1 line per entry in MEMORY.md. Content only loaded when needed.
+**Demotion trigger:** When a decision becomes old news or a project ships. Move it to a referenced entry in MEMORY.md or let it live only in the daily log.
 
-### Tier 3: Archival (Timestamped)
+**Size guardrail:** MEMORY.md should stay under ~200 lines total. If the short-term section alone exceeds ~80 lines, demote aggressively.
 
-Lives in `memories/` with **no index entry** in `MEMORY.md`. Agent must search (`grep`, `find`, or future Memory NPC) to discover it.
+### Tier 2: Medium-term — MEMORY.md Index + Recent Logs
 
+**What it is:** Recent history that's indexed and loadable, but not in every prompt. The agent *knows it exists* and can `read_file` on demand.
+
+**Where it lives:**
+- `MEMORY.md` referenced entries — one-line pointers with summaries
+- `memories/YYYY-MM-DD.md` — daily logs from the last ~7 days
+- `memory/YYYY-MM-DD.md` — parallel daily logs (see consolidation note)
+
+**Format:**
+
+Index entries in MEMORY.md:
 ```markdown
-<!-- memories/20260315T1030_weekly-market-review.memory.md -->
-# Weekly Market Review — 2026-03-15
-
-S&P up 2.1%. Crypto mixed. No actionable signals this week.
+## Checkpoints
+- `2026-04-05_18-14` — tick protocol + tools molt
+- `2026-04-05_20-48` — Code self-surgery + framework emerges
 ```
 
-**When to use:**
-- Raw logs, one-time events, weekly reviews
-- Background material ("that one time at band camp")
-- Anything worth keeping but not worth promoting
+Daily log files:
+```markdown
+<!-- memories/2026-04-05.md -->
+# 2026-04-05 — IExClaw Daily Log (Evening Session)
 
-**Cost:** zero tokens until searched. Fully discoverable via filesystem tools.
-
-## Naming Convention
-
-All memory files follow this pattern:
-
-```
-memories/YYYYMMDDTHHMM_kebab-slug.memory.md
+## Session: 6:17 PM – 8:48 PM ET
+### Substrate Completion
+- Extracted Tools.Messages + Tools.AgentLogger to lib/
+...
 ```
 
-Components:
-- **Timestamp:** ISO 8601 compact, local time (note TZ in file header if ambiguous)
-- **Separator:** single underscore
-- **Slug:** 3–6 words, kebab-case, descriptive
-- **Suffix:** `.memory.md` — disambiguates from task docs and other markdown
+**When consulted:**
+- Agent needs to recall what happened in a recent session
+- Supervisor asks "what did we do on April 5th?"
+- A task references a recent decision or commit
 
-Examples:
+**Naming convention:**
+```
+memories/YYYY-MM-DD.md
+memory/YYYY-MM-DD.md
+```
+ISO date, hyphenated, `.md` extension. Simple. Human-sortable.
 
-```
-memories/20260405T1329_market-opened-bullish.memory.md
-memories/20260404T0912_portfolio-rebalanced.memory.md
-memories/20260401T1600_learned-slippage-pattern.memory.md
-memories/20260328T1100_researched-etf-fees.memory.md
-memories/20260315T1030_weekly-market-review.memory.md
-memories/20260310T0845_debugged-order-routing.memory.md
-```
+**Demotion trigger:** After ~7–10 days with no access, a daily log becomes long-term. Remove from any active index (it's already not in MEMORY.md — just let it age in the directory).
+
+### Tier 3: Long-term — memories/ Archive
+
+**What it is:** Everything worth keeping but not worth indexing. The deep past. Discoverable but not promoted.
+
+**Where it lives:**
+- `memories/` — all daily logs, including old ones
+- `checkpoints/` — timestamped full-state snapshots
+- Future: `memories/archive/` for very old files
+
+**Format:** Same as medium-term — `YYYY-MM-DD.md` daily logs and `YYYY-MM-DD_HH-MM_slug` checkpoint directories. No index entries. No MEMORY.md references.
+
+**When consulted:**
+- Agent needs historical context beyond recent sessions
+- Investigating "when did we decide X?"
+- Reconstructing project history for documentation
+
+**Discovery method:** `list_dir` on `memories/`, `grep` for keywords, or future Memory NPC search.
+
+**Size guardrail:** No hard limit on file count. Consider moving files older than 30 days to `memories/archive/` if the directory gets unwieldy for `list_dir`.
 
 ## Promotion / Demotion Lifecycle
 
 Memories flow between tiers based on relevance and age.
 
 ```
-New memory → [short-term: inline] → [medium-term: referenced] → [archival: unindexed]
-                  ↑                                          |
-                  └──────────── promote if relevant ──────────┘
+New context → [short-term: inline in MEMORY.md]
+                    │
+                    ▼ age / bloat
+            [medium-term: referenced entry or recent log]
+                    │
+                    ▼ age / disuse
+            [long-term: archived, searchable only]
+                    │
+                    ▼ relevance spike
+            [promote back up as needed]
 ```
 
-### Lifecycle rules
+### Rules
 
-1. **Creation** — New memory starts as short-term (inline in MEMORY.md).
-2. **Demotion to referenced** — Triggered by either:
-   - Age: memory is N+ days old (N varies by agent, default 3–5)
-   - Bloat: MEMORY.md inline section exceeds ~80 lines
-   - Action: pull content out into `memories/`, replace inline block with a referenced entry (path + 1-line summary)
-3. **Demotion to archival** — Triggered by:
-   - Age: referenced memory not loaded in M+ sessions (M varies, default 7–10)
-   - Action: remove the referenced entry from MEMORY.md. File stays in `memories/`.
-4. **Promotion** — Any memory can be promoted back up:
-   - A task references it → promote to referenced (add path to MEMORY.md)
-   - A task depends on it every wake → promote to short-term (inline the content)
+1. **Creation** — New context starts in short-term (added to MEMORY.md).
+2. **Demotion to medium-term** — When:
+   - Context is 3–5 days old and no longer shapes every session
+   - MEMORY.md exceeds ~200 lines
+   - Action: remove from inline sections, optionally add a one-line reference
+3. **Demotion to long-term** — When:
+   - A daily log hasn't been read in 7–10 sessions
+   - Action: nothing — it's already in `memories/` with no index entry
+4. **Promotion** — When:
+   - A task needs specific historical context → `read_file` from `memories/`
+   - A pattern proves repeatedly relevant → add back to MEMORY.md as a referenced entry or inline block
 
 ### Who does the moving?
 
-Currently: the agent itself, during its wake-up routine or when MEMORY.md gets long.
+Currently: the agent itself, during wake-up or when MEMORY.md gets long. The `memory_pruner.exs` agent exists for this purpose.
 
-Future: a **Memory NPC** (see below) can automate demotion based on access frequency and age heuristics.
+Future: a **Memory NPC** could automate demotion based on access frequency and age heuristics. See [Memory NPC](#memory-npc-future).
+
+## Per-Agent Memory (Future)
+
+The protocol above describes workspace-root memory. The same pattern extends to individual agents:
+
+```
+agents/
+  code/
+    SOUL.md              # identity (already exists)
+    MEMORY.md            # agent memory index (not yet created)
+    memories/            # agent-specific logs (not yet created)
+      2026-04-05.md      # what Code did today
+  goal/
+    SOUL.md
+    MEMORY.md
+    memories/
+      2026-04-05.md
+```
+
+Each agent owns its memory. No cross-agent memory sharing — that's coordination-layer territory (roundtable, message bus).
+
+**Current state:** Agents have SOUL.md, IDENTITY.md, PHILOSOPHY.md. No MEMORY.md or memories/ yet. The workspace root `MEMORY.md` serves as shared context for all agents.
+
+## File Format Reference
+
+### MEMORY.md (index file)
+- Plain markdown
+- Sections: identity → active context → decisions → open work → checkpoints
+- Under 200 lines total
+- Edited with `edit_file`, never overwritten
+
+### Daily logs (memories/ and memory/)
+- Filename: `YYYY-MM-DD.md`
+- Header: `# YYYY-MM-DD — Description`
+- Sections: session times, sub-topics, commits, next steps
+- One file per day per directory
+- Append-heavy; rarely edited after creation
+
+### Checkpoints
+- Directory: `checkpoints/YYYY-MM-DD_HH-MM_descriptive-slug/`
+- Contains full project state snapshot
+- Created at meaningful moments (post-refactor, post-decision)
+- Never edited after creation
 
 ## Storage Discipline
 
 ### DIRT: Data Is Real, There
 
-- **Filesystem-first.** All memories are markdown files. No database, no SQLite, no key-value store.
-- **Human-readable.** Any memory file can be `cat`'d and understood without tooling.
-- **Append-heavy.** We add memory files far more often than we edit them.
-- **Deletion is rare.** Prefer demotion to archival. Only delete if the memory is factually wrong or actively harmful.
+- **Filesystem-first.** All memory is markdown files. No database.
+- **Human-readable.** Any file can be `cat`'d and understood.
+- **Append-heavy.** We add far more often than we edit.
+- **Deletion is rare.** Prefer demotion. Only delete if factually wrong or harmful.
 
-### Editing vs creating
+### Editing rules
 
-- **New memories:** `write` to create a new `.memory.md` file
-- **Updating MEMORY.md index:** `edit` to add/remove inline blocks and referenced entries
-- **Editing existing memories:** rare, but allowed. Use `edit`, never `write` (avoids overwriting)
-
-### Filesize guardrails
-
-- Single memory file: aim under 100 lines. Split if longer.
-- `MEMORY.md` total: aim under 200 lines. Demote aggressively to stay lean.
-- `memories/` directory: no hard limit, but consider periodic archival pruning (move old files to `memories/archive/`).
+| Operation | Tool | When |
+|-----------|------|------|
+| New daily log | `write_file` | Start of session |
+| Update MEMORY.md | `edit_file` | Add/remove context |
+| Edit existing log | `edit_file` | Rare corrections only |
+| Create checkpoint | filesystem copy | After significant work |
 
 ## Memory NPC (Future)
 
-A dedicated librarian agent that helps other agents **find** relevant memories.
+A dedicated librarian agent that helps other agents find relevant memories.
 
 **Responsibilities:**
-- Read the `memories/` corpus on request
+- Search the `memories/` corpus on request
 - Return pointers (paths) with summaries
 - Suggest memories relevant to a current task
 - Automate demotion based on access frequency
 
 **Boundaries:**
-- Does NOT decide what to remember — that's always the owning agent's call
+- Does NOT decide what to remember — that's the owning agent's call
 - Does NOT edit another agent's MEMORY.md — only suggests changes
 - Does NOT delete memories — only suggests archival
 
-This is a coordination-layer concern, not implemented yet. See `ROADMAP.mmd` for timeline.
+## Open Questions
 
-## Open Questions / TODOs
+- [ ] Consolidate `memories/` and `memory/` into one directory? Currently both hold daily logs with identical naming.
+- [ ] Per-agent MEMORY.md: when should agents get their own? (Currently all share root MEMORY.md)
+- [ ] Timestamp timezone: filenames use local date. Should they be UTC?
+- [ ] Max `memories/` file count before auto-archival to `memories/archive/`?
+- [ ] Embedding-based search vs grep — when does the complexity pay off?
+- [ ] Memory NPC implementation timeline — see `ROADMAP.mmd`
 
-- [ ] What's the right default for N (short → medium) and M (medium → archival) per agent type?
-- [ ] Should cross-agent memory sharing go through a shared `memories/` or through the Memory NPC?
-- [ ] How does MEMORY.md interact with the roundtable protocol (see `roundtable/`)?
-- [ ] Timestamp timezone: always UTC in filenames, or allow local with header annotation?
-- [ ] Should there be a max `memories/` file count before auto-archival kicks in?
-- [ ] Embedding-based search vs grep — when does the complexity become worth it?
-- [ ] Implement a Memory NPC prototype for the librarian role
+## Cross-references
+
+- `MEMORY.md` — workspace root memory index (the canonical example)
+- `memories/` — daily session logs
+- `memory/` — parallel daily logs
+- `checkpoints/` — deep state snapshots
+- `agents/memory_pruner.exs` — automated memory maintenance agent
+- `agents/code/SOUL.md`, `agents/goal/SOUL.md` — agent identity docs (short-term constants)
+- `ROADMAP.mmd` — Memory NPC timeline

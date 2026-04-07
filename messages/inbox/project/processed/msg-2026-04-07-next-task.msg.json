@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-07-211719-6cc2",
+  "from": "clawd",
+  "to": "project",
+  "task_id": "delegate-next-task-2026-04-07",
+  "timestamp": "2026-04-07T21:17:19Z",
+  "expects_response": false,
+  "parts": [
+    {
+      "kind": "directive",
+      "directive": "delegate",
+      "text": "The shared tool modules are already extracted to lib/iex_claw/tools/. Both Code and Goal already import from lib. The extract-shared-tools task is DONE.\n\nPick the NEXT highest-leverage task from the kanban and send it to Code. The repo is at reification-labs/iex-claw on GitHub with CI running. What does the project need most right now? Use send_to_code."
+    }
+  ]
+}
