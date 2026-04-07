@@ -62,8 +62,10 @@ defmodule Tools.AgentLogger do
   while the real implementation lives in `lib/`.
   """
 
-  @workplace IExClaw.Agents.Code.Constants.workplace()
-  @log_dir Path.join(IExClaw.Agents.Code.Constants.home(), "logs")
+  alias IExClaw.Agents.Code.Constants
+
+  @workplace Constants.workplace()
+  @log_dir Path.join(Constants.home(), "logs")
 
   @spec log(String.t(), String.t()) :: {:ok, String.t()}
   def log(agent_name, message) do
@@ -81,6 +83,8 @@ defmodule Tools.Messages do
   This module preserves the external arities (/0, /1, /3, /4) for ToolRegistry.
   """
 
+  alias IExClaw.Tools.Messages
+
   @agent "code"
   @workplace IExClaw.Agents.Code.Constants.workplace()
   @inbox_base Path.join(@workplace, "messages/inbox")
@@ -91,7 +95,7 @@ defmodule Tools.Messages do
   """
   @spec read_inbox() :: {:ok, [map()]}
   def read_inbox do
-    IExClaw.Tools.Messages.read_inbox(@agent, @inbox_base)
+    Messages.read_inbox(@agent, @inbox_base)
   end
 
   @doc """
@@ -100,7 +104,7 @@ defmodule Tools.Messages do
   """
   @spec read_message(String.t()) :: {:ok, map()} | {:error, String.t()}
   def read_message(id) do
-    IExClaw.Tools.Messages.read_message(@agent, id, @inbox_base)
+    Messages.read_message(@agent, id, @inbox_base)
   end
 
   @doc """
@@ -110,7 +114,7 @@ defmodule Tools.Messages do
   @spec send_message(String.t(), String.t(), [map()], keyword()) ::
           {:ok, map()} | {:error, String.t()}
   def send_message(to, task_id, parts, opts \\ []) do
-    IExClaw.Tools.Messages.send_message(@agent, to, task_id, parts, @inbox_base, @workplace, opts)
+    Messages.send_message(@agent, to, task_id, parts, @inbox_base, @workplace, opts)
   end
 end
 
@@ -120,10 +124,12 @@ end
 
 defmodule Tools.ScopeGuard do
   @moduledoc false
+  alias IExClaw.Tools.ScopeGuard
+
   @workplace IExClaw.Agents.Code.Constants.workplace()
 
-  def validate(path), do: IExClaw.Tools.ScopeGuard.validate(path, @workplace)
-  def validate!(path), do: IExClaw.Tools.ScopeGuard.validate!(path, @workplace)
+  def validate(path), do: ScopeGuard.validate(path, @workplace)
+  def validate!(path), do: ScopeGuard.validate!(path, @workplace)
 end
 
 # --- Tools ---
@@ -131,14 +137,16 @@ end
 
 defmodule Tools.FileSystem do
   @moduledoc false
+  alias IExClaw.Tools.FileSystem
+
   @workplace IExClaw.Agents.Code.Constants.workplace()
 
-  def read_file_raw(path), do: IExClaw.Tools.FileSystem.read_file_raw(path, @workplace)
-  def read_file(path, offset \\ 0, limit \\ 8000), do: IExClaw.Tools.FileSystem.read_file(path, @workplace, offset, limit)
-  def write_file(path, content, overwrite \\ false), do: IExClaw.Tools.FileSystem.write_file(path, @workplace, content, overwrite)
-  def list_dir(path), do: IExClaw.Tools.FileSystem.list_dir(path, @workplace)
-  def file_size(path), do: IExClaw.Tools.FileSystem.file_size(path, @workplace)
-  def backup(path), do: IExClaw.Tools.FileSystem.backup(path, @workplace)
+  def read_file_raw(path), do: FileSystem.read_file_raw(path, @workplace)
+  def read_file(path, offset \\ 0, limit \\ 8000), do: FileSystem.read_file(path, @workplace, offset, limit)
+  def write_file(path, content, overwrite \\ false), do: FileSystem.write_file(path, @workplace, content, overwrite)
+  def list_dir(path), do: FileSystem.list_dir(path, @workplace)
+  def file_size(path), do: FileSystem.file_size(path, @workplace)
+  def backup(path), do: FileSystem.backup(path, @workplace)
 end
 
 defmodule Tools.EditFile do
@@ -149,8 +157,7 @@ defmodule Tools.EditFile do
   Targeted edits using [{old_text, new_text}] list.
   Delegates to IExClaw.Tools.EditFile.
   """
-  def edit(path, edits) when is_list(edits),
-    do: IExClaw.Tools.EditFile.edit(path, @workplace, edits)
+  def edit(path, edits) when is_list(edits), do: IExClaw.Tools.EditFile.edit(path, @workplace, edits)
 end
 
 # --- Tool Registry ---
@@ -388,7 +395,12 @@ defmodule IExClaw.Agents.Code do
     """)
 
     state = IExClaw.Agent.append_message(state, "user", task)
-    state = IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2, tools_schema: ToolRegistry.as_openai_tools(), agent_name: "Code")
+
+    state =
+      IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2,
+        tools_schema: ToolRegistry.as_openai_tools(),
+        agent_name: "Code"
+      )
 
     summary = IExClaw.Agent.extract_summary(state)
 
@@ -413,7 +425,13 @@ defmodule IExClaw.Agents.Code do
     Tools.AgentLogger.log("Code", "self_request from heartbeat: #{task}")
     IO.puts("\n💓 Code responding to heartbeat: #{String.slice(task, 0, 100)}")
     state = IExClaw.Agent.append_message(state, "user", "[heartbeat] #{task}")
-    new_state = IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2, tools_schema: ToolRegistry.as_openai_tools(), agent_name: "Code")
+
+    new_state =
+      IExClaw.Agent.agent_loop(state, &ToolRegistry.execute/2,
+        tools_schema: ToolRegistry.as_openai_tools(),
+        agent_name: "Code"
+      )
+
     {:noreply, new_state}
   end
 
@@ -424,66 +442,66 @@ end
 
 # --- Wake Up ---
 # Skip the CLI entry point when loaded as a library (e.g. tick_code.exs).
-unless System.get_env("IEXCLAW_CODE_LIB") == "1" do
+if System.get_env("IEXCLAW_CODE_LIB") != "1" do
+  case System.argv() do
+    [task | rest] ->
+      model = List.first(rest)
 
-case System.argv() do
-  [task | rest] ->
-    model = List.first(rest)
+      opts =
+        if model do
+          [model: model]
+        else
+          []
+        end
 
-    opts =
-      if model do
-        [model: model]
-      else
-        []
+      File.cd!(Path.expand("~/workspace"))
+
+      case IExClaw.Agents.Code.run(task, opts) do
+        {:ok, _summary} ->
+          IO.puts("\n───────────────────────────────────")
+          IO.puts("🧬 Code going back to sleep.\n")
+
+        {:error, reason} ->
+          IO.puts("\n❌ #{reason}")
+          System.halt(1)
       end
 
-    File.cd!(Path.expand("~/workspace"))
+    _ ->
+      IO.puts("""
+      🧬 Code — I am what the code wants.
 
-    case IExClaw.Agents.Code.run(task, opts) do
-      {:ok, _summary} ->
-        IO.puts("\n───────────────────────────────────")
-        IO.puts("🧬 Code going back to sleep.\n")
+      Usage:
+        elixir agents/code/code.exs "<task description>" [model]
 
-      {:error, reason} ->
-        IO.puts("\n❌ #{reason}")
-        System.halt(1)
-    end
+      Examples:
+        elixir agents/code/code.exs "grow a new module for parsing config files"
+        elixir agents/code/code.exs "heal the bug in lib/parser.ex"
+        elixir agents/code/code.exs "repair stale patterns in test/"
+        elixir agents/code/code.exs "build a codelet for string validation" z-ai/glm-5-turbo
 
-  _ ->
-    IO.puts("""
-    🧬 Code — I am what the code wants.
+      Or programmatically:
+        {:ok, pid} = IExClaw.Agents.Code.start_link()
+        {:ok, summary} = IExClaw.Agents.Code.request(pid, "grow X")
 
-    Usage:
-      elixir agents/code/code.exs "<task description>" [model]
+      Environment:
+        OPENROUTER_API_KEY  — required (or pass api_key in opts)
+        PROJECT_MODEL        — default model override
 
-    Examples:
-      elixir agents/code/code.exs "grow a new module for parsing config files"
-      elixir agents/code/code.exs "heal the bug in lib/parser.ex"
-      elixir agents/code/code.exs "repair stale patterns in test/"
-      elixir agents/code/code.exs "build a codelet for string validation" z-ai/glm-5-turbo
+      Boundaries:
+        I only work in projects/iex-claw/. Always.
 
-    Or programmatically:
-      {:ok, pid} = IExClaw.Agents.Code.start_link()
-      {:ok, summary} = IExClaw.Agents.Code.request(pid, "grow X")
-
-    Environment:
-      OPENROUTER_API_KEY  — required (or pass api_key in opts)
-      PROJECT_MODEL        — default model override
-
-    Boundaries:
-      I only work in projects/iex-claw/. Always.
-
-    Tools:
-      read_file    — see what's there first
-      write_file   — create new files (errors if exists)
-      edit_file    — targeted edits (old_text must be unique)
-      list_dir     — see directory contents
-      file_size    — check file size
-      backup       — timestamped backup before destructive ops
-      read_inbox   — list messages in your inbox
-      read_message — read a single message by ID
-      send_message — send a message to another agent
-    """)
+      Tools:
+        read_file    — see what's there first
+        write_file   — create new files (errors if exists)
+        edit_file    — targeted edits (old_text must be unique)
+        list_dir     — see directory contents
+        file_size    — check file size
+        backup       — timestamped backup before destructive ops
+        read_inbox   — list messages in your inbox
+        read_message — read a single message by ID
+        send_message — send a message to another agent
+      """)
+  end
 end
 
-end  # unless IEXCLAW_CODE_LIB
+# unless IEXCLAW_CODE_LIB

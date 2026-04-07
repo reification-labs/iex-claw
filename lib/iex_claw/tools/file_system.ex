@@ -56,16 +56,14 @@ defmodule IExClaw.Tools.FileSystem do
   @spec write_file(Path.t(), workplace, binary(), boolean()) :: result(String.t())
   def write_file(path, workplace, content, overwrite \\ false) do
     with {:ok, expanded} <- ScopeGuard.validate(path, workplace) do
-      cond do
-        File.exists?(expanded) and overwrite != true ->
-          {:error,
-           "File exists: #{expanded}. Pass overwrite: true to clobber. " <>
-             "(Show me what's there first.)"}
-
-        true ->
-          expanded |> Path.dirname() |> File.mkdir_p!()
-          File.write!(expanded, content)
-          {:ok, "Wrote #{byte_size(content)} bytes to #{expanded}"}
+      if File.exists?(expanded) and overwrite != true do
+        {:error,
+         "File exists: #{expanded}. Pass overwrite: true to clobber. " <>
+           "(Show me what's there first.)"}
+      else
+        expanded |> Path.dirname() |> File.mkdir_p!()
+        File.write!(expanded, content)
+        {:ok, "Wrote #{byte_size(content)} bytes to #{expanded}"}
       end
     end
   end

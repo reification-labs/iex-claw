@@ -203,6 +203,6 @@ defmodule IExClaw.Strategies.PlanExecute do
   @spec progress(t()) :: String.t()
   def progress(%__MODULE__{} = state) do
     "#{state.phase} — #{steps_done(state)}/#{steps_total(state)} steps" <>
-      if(state.errors != [], do: " (#{length(state.errors)} errors)", else: "")
+      if(state.errors == [], do: "", else: " (#{length(state.errors)} errors)")
   end
 end

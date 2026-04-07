@@ -57,8 +57,7 @@ defmodule IExClaw.Agent do
       {Path.join(home, "PHILOSOPHY.md"), "PHILOSOPHY.md"}
     ]
 
-    (base_files ++ extra_soul_files)
-    |> Enum.map(fn {path, label} ->
+    Enum.map_join(base_files ++ extra_soul_files, "\n\n", fn {path, label} ->
       content =
         case File.read(path) do
           {:ok, c} -> c
@@ -67,7 +66,6 @@ defmodule IExClaw.Agent do
 
       "## #{label}\n#{content}"
     end)
-    |> Enum.join("\n\n")
   end
 
   @doc """
@@ -90,7 +88,12 @@ defmodule IExClaw.Agent do
       base_url: state.base_url
     ]
 
-    on_event.("llm_request", %{model: state.model, message_count: length(state.messages), tools_count: length(tools_schema)}, ctx)
+    on_event.(
+      "llm_request",
+      %{model: state.model, message_count: length(state.messages), tools_count: length(tools_schema)},
+      ctx
+    )
+
     IO.puts("\n⏳ Thinking...")
 
     case IExClaw.LLMClient.call(state.model, state.messages, tools_schema, llm_opts) do

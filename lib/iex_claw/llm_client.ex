@@ -41,13 +41,10 @@ defmodule IExClaw.LLMClient do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
 
     body =
-      %{
-        "model" => model,
-        "messages" => messages,
-        "temperature" => temperature,
-        "max_tokens" => max_tokens
-      }
-      |> maybe_add_tools(tools)
+      maybe_add_tools(
+        %{"model" => model, "messages" => messages, "temperature" => temperature, "max_tokens" => max_tokens},
+        tools
+      )
 
     case Req.post("#{base_url}/chat/completions",
            json: body,

@@ -12,7 +12,8 @@ defmodule IExClaw.Strategies.PlanExecuteTest do
 
     test "transitions survey → execute → verify → done" do
       state =
-        PlanExecute.new("refactor")
+        "refactor"
+        |> PlanExecute.new()
         |> PlanExecute.set_plan([%{task: "step 1"}, %{task: "step 2"}])
         |> PlanExecute.begin_execution()
 
@@ -34,7 +35,8 @@ defmodule IExClaw.Strategies.PlanExecuteTest do
   describe "plan management" do
     test "set_plan normalizes steps" do
       state =
-        PlanExecute.new("refactor")
+        "refactor"
+        |> PlanExecute.new()
         |> PlanExecute.set_plan([
           %{task: "replace ToolRegistry", files: ["code.exs"], lines: "156-270"},
           %{task: "replace agent_loop", files: ["code.exs"]}
@@ -52,7 +54,8 @@ defmodule IExClaw.Strategies.PlanExecuteTest do
   describe "step execution" do
     setup do
       state =
-        PlanExecute.new("test")
+        "test"
+        |> PlanExecute.new()
         |> PlanExecute.set_plan([%{task: "a"}, %{task: "b"}, %{task: "c"}])
         |> PlanExecute.begin_execution()
 
@@ -100,7 +103,8 @@ defmodule IExClaw.Strategies.PlanExecuteTest do
   describe "survey result" do
     test "stores survey analysis" do
       state =
-        PlanExecute.new("refactor")
+        "refactor"
+        |> PlanExecute.new()
         |> PlanExecute.set_survey_result("Found 3 sections to change")
 
       assert state.survey_result == "Found 3 sections to change"

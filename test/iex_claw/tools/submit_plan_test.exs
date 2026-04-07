@@ -4,10 +4,11 @@ defmodule IExClaw.Tools.SubmitPlanTest do
   alias IExClaw.Tools.SubmitPlan
 
   test "accepts valid plan" do
-    json = Jason.encode!([
-      %{"id" => "step-1", "task" => "do thing"},
-      %{"id" => "step-2", "task" => "do other thing"}
-    ])
+    json =
+      Jason.encode!([
+        %{"id" => "step-1", "task" => "do thing"},
+        %{"id" => "step-2", "task" => "do other thing"}
+      ])
 
     assert {:ok, steps} = SubmitPlan.submit(json)
     assert length(steps) == 2

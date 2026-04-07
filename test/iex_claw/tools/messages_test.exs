@@ -91,9 +91,7 @@ defmodule IExClaw.Tools.MessagesTest do
       parts = [%{"kind" => "text", "text" => "proposal draft"}]
 
       assert {:ok, env} =
-               Messages.send_message("code", "goal", "task-x", parts, ib, wp,
-                 expects_response: true
-               )
+               Messages.send_message("code", "goal", "task-x", parts, ib, wp, expects_response: true)
 
       assert env["from"] == "code"
       assert env["to"] == "goal"
@@ -130,9 +128,7 @@ defmodule IExClaw.Tools.MessagesTest do
 
     test "threads via in_reply_to", %{workplace: wp, inbox_base: ib} do
       assert {:ok, env} =
-               Messages.send_message("code", "goal", "task-x", [], ib, wp,
-                 in_reply_to: "msg-parent-0001"
-               )
+               Messages.send_message("code", "goal", "task-x", [], ib, wp, in_reply_to: "msg-parent-0001")
 
       assert env["in_reply_to"] == "msg-parent-0001"
     end

@@ -1,7 +1,8 @@
 defmodule IExClaw.ContractTest do
   use ExUnit.Case, async: true
 
-  alias IExClaw.{Contract, Mode}
+  alias IExClaw.Contract
+  alias IExClaw.Mode
 
   setup do
     modes = [
@@ -10,12 +11,13 @@ defmodule IExClaw.ContractTest do
       Mode.new(:verify, tools: [:read_file, :file_size], output: :report, next: :done)
     ]
 
-    contract = Contract.new(
-      goal: "Rewire ToolRegistry",
-      agent: "code",
-      supervisor: "project",
-      modes: modes
-    )
+    contract =
+      Contract.new(
+        goal: "Rewire ToolRegistry",
+        agent: "code",
+        supervisor: "project",
+        modes: modes
+      )
 
     {:ok, contract: contract}
   end
