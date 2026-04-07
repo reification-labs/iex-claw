@@ -44,8 +44,8 @@ Code.require_file(Path.expand("../../lib/iex_claw/agent.ex", __DIR__))
 
 defmodule IExClaw.Agents.Code.Constants do
   @moduledoc false
-  @home Path.expand("projects/iex-claw/agents/code/")
-  @workplace Path.expand("projects/iex-claw/")
+  @home Path.expand("..", __DIR__)
+  @workplace Path.expand("../..", __DIR__)
 
   def home, do: @home
   def workplace, do: @workplace
