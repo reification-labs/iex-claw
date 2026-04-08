@@ -154,6 +154,7 @@ defmodule IExClaw.Agents.Project do
       kanban: safe_read(Path.join(workplace, "KANBAN.md")),
       tasks: safe_read(Path.join(workplace, "TASKS.md")),
       goal: safe_read(Path.join(workplace, "GOAL.md")),
+      agents: safe_read(Path.join(workplace, "AGENTS.md")),
       architecture: safe_read(Path.join(workplace, "ARCHITECTURE.md"))
     }
   end
@@ -197,6 +198,9 @@ defmodule IExClaw.Agents.Project do
 
     ### GOAL (north star)
     #{ctx.goal}
+
+    ### AGENTS (shared operating protocols)
+    #{ctx.agents}
 
     ## Rules
     1. You do NOT write code. You delegate to Code via send_message.

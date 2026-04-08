@@ -460,7 +460,8 @@ defmodule IExClaw.Agents.Goal do
 
   defp load_soul_docs do
     IExClaw.Agent.load_soul_docs(Constants.home(), [
-      {Path.join(Constants.workplace(), "GOAL.md"), "GOAL.md (THE NORTH STAR)"}
+      {Path.join(Constants.workplace(), "GOAL.md"), "GOAL.md (THE NORTH STAR)"},
+      {Path.join(Constants.workplace(), "AGENTS.md"), "AGENTS.md (SHARED PROTOCOLS)"}
     ])
   end
 

@@ -289,7 +289,9 @@ defmodule IExClaw.Agents.Code do
   # -- Soul Loading --
 
   defp load_soul_docs do
-    IExClaw.Agent.load_soul_docs(Constants.home())
+    IExClaw.Agent.load_soul_docs(Constants.home(), [
+      {Path.join(Constants.workplace(), "AGENTS.md"), "AGENTS.md (SHARED PROTOCOLS)"}
+    ])
   end
 
   # -- System Prompt --

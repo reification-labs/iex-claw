@@ -5,8 +5,20 @@ defmodule IExClaw.ToolRegistryServerTest do
 
   setup do
     name = :"test_registry_#{System.unique_integer([:positive])}"
-    {:ok, _pid} = ToolRegistryServer.start_link(name: name)
-    {:ok, registry: name}
+    spec = ToolRegistryServer.child_spec(name: name)
+    {mod, fun, args} = spec.start
+    {:ok, sup_pid} = apply(mod, fun, args)
+    on_exit(fn ->
+      ref = Process.monitor(sup_pid)
+      Process.exit(sup_pid, :shutdown)
+      receive do
+        {:DOWN, ^ref, _, _, _} -> :ok
+      after
+        1000 -> :ok
+      end
+      Process.demonitor(ref, [:flush])
+    end)
+    {:ok, registry: name, sup_pid: sup_pid}
   end
 
   describe "register_tool/3" do
@@ -232,15 +244,170 @@ defmodule IExClaw.ToolRegistryServerTest do
   end
 
   describe "child_spec" do
-    test "returns valid child spec with worker type" do
+    test "returns valid child spec with supervisor type" do
       spec = ToolRegistryServer.child_spec(name: :test_spec)
       assert spec.id == :test_spec
-      assert spec.type == :worker
+      assert spec.type == :supervisor
     end
 
     test "default name is the module" do
       spec = ToolRegistryServer.child_spec([])
       assert spec.id == ToolRegistryServer
+    end
+  end
+
+  describe "supervision tree" do
+    test "Task.Supervisor is a sibling child, not inside init" do
+      name = :"test_sup_tree_#{System.unique_integer([:positive])}"
+      spec = ToolRegistryServer.child_spec(name: name)
+      {mod, fun, args} = spec.start
+      {:ok, sup_pid} = apply(mod, fun, args)
+      on_exit(fn ->
+        ref = Process.monitor(sup_pid)
+        Process.exit(sup_pid, :shutdown)
+        receive do
+          {:DOWN, ^ref, _, _, _} -> :ok
+        after
+          1000 -> :ok
+        end
+        Process.demonitor(ref, [:flush])
+      end)
+
+      task_sup_name = ToolRegistryServer.task_supervisor_name(name)
+
+      # The Task.Supervisor should be a direct child of our wrapper supervisor
+      children = Supervisor.which_children(sup_pid)
+
+      child_ids = Enum.map(children, fn {id, _pid, _type, _modules} -> id end)
+      assert task_sup_name in child_ids
+      assert name in child_ids
+
+      # The Task.Supervisor should be alive and reachable by name
+      assert Process.whereis(task_sup_name) != nil
+    end
+
+    test "rest_for_one: GenServer crash does not kill Task.Supervisor" do
+      name = :"test_rfo_#{System.unique_integer([:positive])}"
+      spec = ToolRegistryServer.child_spec(name: name)
+      {mod, fun, args} = spec.start
+      {:ok, sup_pid} = apply(mod, fun, args)
+      on_exit(fn ->
+        ref = Process.monitor(sup_pid)
+        Process.exit(sup_pid, :shutdown)
+        receive do
+          {:DOWN, ^ref, _, _, _} -> :ok
+        after
+          1000 -> :ok
+        end
+        Process.demonitor(ref, [:flush])
+      end)
+
+      task_sup_name = ToolRegistryServer.task_supervisor_name(name)
+
+      # Register a tool and verify it works
+      ToolRegistryServer.register_tool(name, :echo, %{
+        description: "Echo",
+        parameters: %{type: "object", properties: %{}, required: []},
+        execute: fn _ -> {:ok, :hello} end
+      })
+
+      assert {:ok, :hello} = ToolRegistryServer.execute_tool(name, :echo, %{})
+
+      # Find and kill the GenServer process
+      children = Supervisor.which_children(sup_pid)
+
+      {^name, gen_pid, :worker, _} =
+        Enum.find(children, fn {id, _, _, _} -> id == name end)
+
+      # Capture the Task.Supervisor PID before crash
+      {^task_sup_name, task_sup_pid_before, :supervisor, _} =
+        Enum.find(children, fn {id, _, _, _} -> id == task_sup_name end)
+
+      # Kill the GenServer
+      Process.exit(gen_pid, :kill)
+
+      # Wait for restart
+      Process.sleep(100)
+
+      # Task.Supervisor should still be the same process (not restarted)
+      children_after = Supervisor.which_children(sup_pid)
+
+      {^task_sup_name, task_sup_pid_after, :supervisor, _} =
+        Enum.find(children_after, fn {id, _, _, _} -> id == task_sup_name end)
+
+      assert task_sup_pid_before == task_sup_pid_after
+
+      # GenServer should have restarted (new PID, fresh state)
+      {^name, gen_pid_after, :worker, _} =
+        Enum.find(children_after, fn {id, _, _, _} -> id == name end)
+
+      assert gen_pid_after != gen_pid
+
+      # Fresh state — tools are gone after restart
+      assert ToolRegistryServer.list_tools(name) == []
+    end
+
+    test "rest_for_one: Task.Supervisor crash restarts GenServer too" do
+      name = :"test_rfo_ts_#{System.unique_integer([:positive])}"
+      spec = ToolRegistryServer.child_spec(name: name)
+      {mod, fun, args} = spec.start
+      {:ok, sup_pid} = apply(mod, fun, args)
+      on_exit(fn ->
+        ref = Process.monitor(sup_pid)
+        Process.exit(sup_pid, :shutdown)
+        receive do
+          {:DOWN, ^ref, _, _, _} -> :ok
+        after
+          1000 -> :ok
+        end
+        Process.demonitor(ref, [:flush])
+      end)
+
+      task_sup_name = ToolRegistryServer.task_supervisor_name(name)
+
+      # Register a tool
+      ToolRegistryServer.register_tool(name, :echo, %{
+        description: "Echo",
+        parameters: %{type: "object", properties: %{}, required: []},
+        execute: fn _ -> {:ok, :hello} end
+      })
+
+      # Find and kill the Task.Supervisor
+      children = Supervisor.which_children(sup_pid)
+
+      {^task_sup_name, task_sup_pid, :supervisor, _} =
+        Enum.find(children, fn {id, _, _, _} -> id == task_sup_name end)
+
+      Process.exit(task_sup_pid, :kill)
+
+      # Wait for restart cascade
+      Process.sleep(100)
+
+      # Both should have restarted (new PIDs)
+      children_after = Supervisor.which_children(sup_pid)
+
+      {^task_sup_name, task_sup_pid_after, :supervisor, _} =
+        Enum.find(children_after, fn {id, _, _, _} -> id == task_sup_name end)
+
+      {^name, gen_pid_after, :worker, _} =
+        Enum.find(children_after, fn {id, _, _, _} -> id == name end)
+
+      assert task_sup_pid_after != task_sup_pid
+
+      # GenServer should also have restarted (rest_for_one)
+      assert gen_pid_after != nil
+
+      # Fresh state
+      assert ToolRegistryServer.list_tools(name) == []
+
+      # Registry should still be functional after restart
+      ToolRegistryServer.register_tool(name, :new_tool, %{
+        description: "New",
+        parameters: %{type: "object", properties: %{}, required: []},
+        execute: fn _ -> {:ok, :works} end
+      })
+
+      assert {:ok, :works} = ToolRegistryServer.execute_tool(name, :new_tool, %{})
     end
   end
 

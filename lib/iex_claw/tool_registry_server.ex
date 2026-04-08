@@ -74,18 +74,42 @@ defmodule IExClaw.ToolRegistryServer do
   @doc """
   Child spec for supervisors.
 
-  Returns a child spec for the ToolRegistryServer GenServer.
-  The GenServer internally starts a Task.Supervisor for crash-isolated execution.
+  Returns a child spec that starts a Supervisor with `:rest_for_one` strategy,
+  wrapping both the Task.Supervisor (for crash-isolated execution) and the
+  ToolRegistryServer GenServer as sibling children.
+
+  If the Task.Supervisor crashes, the GenServer is restarted (rest_for_one).
+  If the GenServer crashes, the Task.Supervisor survives.
   """
   @spec child_spec(keyword()) :: :supervisor.child_spec()
   def child_spec(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
+    task_sup_name = task_supervisor_name(name)
 
     %{
       id: name,
-      start: {__MODULE__, :start_link, [opts]},
-      type: :worker
+      start: {__MODULE__, :start_supervisor, [name, task_sup_name, opts]},
+      type: :supervisor
     }
+  end
+
+  @doc false
+  @spec start_supervisor(atom(), atom(), keyword()) :: Supervisor.on_start()
+  def start_supervisor(name, task_sup_name, opts) do
+    children = [
+      %{
+        id: task_sup_name,
+        start: {Task.Supervisor, :start_link, [[name: task_sup_name]]},
+        type: :supervisor
+      },
+      %{
+        id: name,
+        start: {__MODULE__, :start_link, [opts]},
+        type: :worker
+      }
+    ]
+
+    Supervisor.start_link(children, strategy: :rest_for_one)
   end
 
   @doc false
@@ -100,15 +124,7 @@ defmodule IExClaw.ToolRegistryServer do
 
   @impl true
   def init(name) do
-    task_sup_name = task_supervisor_name(name)
-
-    case Task.Supervisor.start_link(name: task_sup_name) do
-      {:ok, _pid} ->
-        {:ok, %{name: name, tools: %{}}}
-
-      {:error, reason} ->
-        {:stop, reason}
-    end
+    {:ok, %{name: name, tools: %{}}}
   end
 
   @impl true
