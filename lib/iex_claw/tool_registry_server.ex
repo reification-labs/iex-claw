@@ -53,6 +53,26 @@ defmodule IExClaw.ToolRegistryServer do
     GenServer.call(server, :list)
   end
 
+  @doc """
+  Unregister a tool by name.
+
+  Returns `:ok` or `{:error, :unknown_tool}` if no tool with that name exists.
+  """
+  @spec unregister_tool(GenServer.server(), atom()) :: :ok | {:error, :unknown_tool}
+  def unregister_tool(server \\ __MODULE__, name) when is_atom(name) do
+    GenServer.call(server, {:unregister, name})
+  end
+
+  @doc """
+  Remove all registered tools.
+
+  Returns `:ok`.
+  """
+  @spec clear(GenServer.server()) :: :ok
+  def clear(server \\ __MODULE__) do
+    GenServer.call(server, :clear)
+  end
+
   @doc "Describe all registered tools (name, description, parameter schema)."
   @spec describe_tools(GenServer.server()) :: [map()]
   def describe_tools(server \\ __MODULE__) do
@@ -112,7 +132,12 @@ defmodule IExClaw.ToolRegistryServer do
     Supervisor.start_link(children, strategy: :rest_for_one)
   end
 
-  @doc false
+  @doc """
+  Returns the derived Task.Supervisor name for a given registry name.
+
+  For a registry named `:my_registry`, returns `:"Elixir.my_registry.TaskSupervisor"`.
+  Returns `nil` if the registry was started with a PID instead of a name.
+  """
   @spec task_supervisor_name(atom()) :: atom()
   def task_supervisor_name(registry_name) when is_atom(registry_name), do: Module.concat(registry_name, TaskSupervisor)
 
@@ -133,7 +158,7 @@ defmodule IExClaw.ToolRegistryServer do
       {:reply, {:error, :already_registered}, state}
     else
       :telemetry.execute(
-        [:tool_registry, :tool_registered],
+        [:iex_claw, :tool_registry, :registered],
         %{duration: 0},
         %{tool_name: name}
       )
@@ -144,6 +169,18 @@ defmodule IExClaw.ToolRegistryServer do
 
   def handle_call(:list, _from, state) do
     {:reply, Map.keys(state.tools), state}
+  end
+
+  def handle_call({:unregister, name}, _from, state) do
+    if Map.has_key?(state.tools, name) do
+      {:reply, :ok, %{state | tools: Map.delete(state.tools, name)}}
+    else
+      {:reply, {:error, :unknown_tool}, state}
+    end
+  end
+
+  def handle_call(:clear, _from, state) do
+    {:reply, :ok, %{state | tools: %{}}}
   end
 
   def handle_call(:describe, _from, state) do
@@ -163,7 +200,7 @@ defmodule IExClaw.ToolRegistryServer do
     case Map.fetch(state.tools, name) do
       {:ok, tool_def} ->
         task_sup = task_supervisor_name(state.name)
-        result = run_isolated(task_sup, tool_def.execute, params, timeout)
+        result = run_isolated(task_sup, tool_def.execute, params, timeout, name)
         {:reply, result, state}
 
       :error ->
@@ -187,7 +224,7 @@ defmodule IExClaw.ToolRegistryServer do
     end
   end
 
-  defp run_isolated(task_sup, execute_fn, params, timeout) do
+  defp run_isolated(task_sup, execute_fn, params, timeout, tool_name) do
     start_time = System.monotonic_time()
 
     task =
@@ -198,38 +235,38 @@ defmodule IExClaw.ToolRegistryServer do
     result =
       case Task.yield(task, timeout) || Task.shutdown(task) do
         {:ok, {:ok, value}} ->
-          emit_success_telemetry(start_time, :ok, value)
+          emit_success_telemetry(start_time, tool_name, value)
           {:ok, value}
 
         {:ok, {:error, reason}} ->
-          emit_error_telemetry(start_time, reason)
+          emit_error_telemetry(start_time, tool_name, reason)
           {:error, reason}
 
         {:exit, _reason} ->
-          emit_error_telemetry(start_time, :execution_failed)
+          emit_error_telemetry(start_time, tool_name, :execution_failed)
           {:error, :execution_failed}
 
         nil ->
-          emit_error_telemetry(start_time, :timeout)
+          emit_error_telemetry(start_time, tool_name, :timeout)
           {:error, :timeout}
       end
 
     result
   end
 
-  defp emit_success_telemetry(start_time, status, result) do
+  defp emit_success_telemetry(start_time, tool_name, result) do
     :telemetry.execute(
-      [:tool_registry, :tool_executed],
+      [:iex_claw, :tool_registry, :executed],
       %{duration: System.monotonic_time() - start_time},
-      %{tool_name: nil, status: status, result: result}
+      %{tool_name: tool_name, result: result}
     )
   end
 
-  defp emit_error_telemetry(start_time, status) do
+  defp emit_error_telemetry(start_time, tool_name, reason) do
     :telemetry.execute(
-      [:tool_registry, :tool_executed],
+      [:iex_claw, :tool_registry, :failed],
       %{duration: System.monotonic_time() - start_time},
-      %{tool_name: nil, status: status}
+      %{tool_name: tool_name, reason: reason}
     )
   end
 end

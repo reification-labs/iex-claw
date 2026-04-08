@@ -85,8 +85,9 @@ cd ~/workspace && elixir projects/iex-claw/agents/project/project.exs "plan the 
 
 ## Environment
 - `OPENROUTER_API_KEY` — required for LLM calls
-- `PROJECT_MODEL` — override model (default: `z-ai/glm-5-turbo`)
-- `IEXCLAW_MODEL` — fallback model
+- `PROJECT_MODEL` — override model for Project (default: `z-ai/glm-5-turbo`)
+- `GOAL_MODEL` — override model for Goal (falls back to `PROJECT_MODEL`, then `z-ai/glm-5-turbo`)
+- `IEXCLAW_MODEL` — fallback model for any agent
 - `IEXCLAW_SKIP_DEMO` — set to `1` when loading as library
 
 ## Map Files (prevent re-exploration)

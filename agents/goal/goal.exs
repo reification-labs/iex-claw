@@ -32,6 +32,7 @@ Code.require_file(Path.expand("../../lib/iex_claw/tools/edit_file.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tools/messages.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tools/agent_logger.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tool_registry.ex", __DIR__))
+Code.require_file(Path.expand("../../lib/iex_claw/run_logger.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/llm_client.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/agent.ex", __DIR__))
 

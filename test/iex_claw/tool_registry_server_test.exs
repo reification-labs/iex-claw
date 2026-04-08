@@ -158,14 +158,14 @@ defmodule IExClaw.ToolRegistryServerTest do
   end
 
   describe "telemetry" do
-    test "handler receives :tool_registered events", %{registry: reg} do
+    test "handler receives :registered events", %{registry: reg} do
       # Use an Agent as counter since telemetry fires in the GenServer process
       {:ok, counter} = Agent.start_link(fn -> [] end)
       handler = "test-reg-#{System.unique_integer()}"
 
       :telemetry.attach(
         handler,
-        [:tool_registry, :tool_registered],
+        [:iex_claw, :tool_registry, :registered],
         fn _name, _measurements, metadata, _config ->
           Agent.update(counter, fn events -> [metadata | events] end)
         end,
@@ -183,13 +183,13 @@ defmodule IExClaw.ToolRegistryServerTest do
       Agent.stop(counter)
     end
 
-    test "handler receives :tool_executed events on success", %{registry: reg} do
+    test "handler receives :executed events on success with tool_name", %{registry: reg} do
       {:ok, counter} = Agent.start_link(fn -> [] end)
       handler = "test-exec-#{System.unique_integer()}"
 
       :telemetry.attach(
         handler,
-        [:tool_registry, :tool_executed],
+        [:iex_claw, :tool_registry, :executed],
         fn _name, measurements, metadata, _config ->
           Agent.update(counter, fn events -> [{measurements, metadata} | events] end)
         end,
@@ -207,19 +207,20 @@ defmodule IExClaw.ToolRegistryServerTest do
       Process.sleep(10)
       [{measurements, metadata}] = Agent.get(counter, & &1)
       assert measurements.duration > 0
-      assert metadata.status == :ok
+      assert metadata.tool_name == :fast
+      assert metadata.result == :done
 
       :telemetry.detach(handler)
       Agent.stop(counter)
     end
 
-    test "handler receives :tool_executed with error status on crash", %{registry: reg} do
+    test "handler receives :failed events on crash with tool_name", %{registry: reg} do
       {:ok, counter} = Agent.start_link(fn -> [] end)
       handler = "test-crash-#{System.unique_integer()}"
 
       :telemetry.attach(
         handler,
-        [:tool_registry, :tool_executed],
+        [:iex_claw, :tool_registry, :failed],
         fn _name, _measurements, metadata, _config ->
           Agent.update(counter, fn events -> [metadata | events] end)
         end,
@@ -236,7 +237,38 @@ defmodule IExClaw.ToolRegistryServerTest do
 
       Process.sleep(10)
       [metadata] = Agent.get(counter, & &1)
-      assert metadata.status == :execution_failed
+      assert metadata.tool_name == :crash
+      assert metadata.reason == :execution_failed
+
+      :telemetry.detach(handler)
+      Agent.stop(counter)
+    end
+
+    test "handler receives :failed events on tool error with tool_name", %{registry: reg} do
+      {:ok, counter} = Agent.start_link(fn -> [] end)
+      handler = "test-err-#{System.unique_integer()}"
+
+      :telemetry.attach(
+        handler,
+        [:iex_claw, :tool_registry, :failed],
+        fn _name, _measurements, metadata, _config ->
+          Agent.update(counter, fn events -> [metadata | events] end)
+        end,
+        nil
+      )
+
+      ToolRegistryServer.register_tool(reg, :failer, %{
+        description: "Fail tool",
+        parameters: %{type: "object", properties: %{}, required: []},
+        execute: fn _ -> {:error, :boom} end
+      })
+
+      assert {:error, :boom} = ToolRegistryServer.execute_tool(reg, :failer, %{})
+
+      Process.sleep(10)
+      [metadata] = Agent.get(counter, & &1)
+      assert metadata.tool_name == :failer
+      assert metadata.reason == :boom
 
       :telemetry.detach(handler)
       Agent.stop(counter)
@@ -408,6 +440,48 @@ defmodule IExClaw.ToolRegistryServerTest do
       })
 
       assert {:ok, :works} = ToolRegistryServer.execute_tool(name, :new_tool, %{})
+    end
+  end
+
+  describe "unregister_tool/2" do
+    test "removes a registered tool", %{registry: reg} do
+      register_simple(reg, :to_remove)
+      assert :to_remove in ToolRegistryServer.list_tools(reg)
+      assert :ok = ToolRegistryServer.unregister_tool(reg, :to_remove)
+      assert :to_remove not in ToolRegistryServer.list_tools(reg)
+    end
+
+    test "returns error for unknown tool", %{registry: reg} do
+      assert {:error, :unknown_tool} = ToolRegistryServer.unregister_tool(reg, :ghost)
+    end
+
+    test "can re-register after unregistering", %{registry: reg} do
+      register_simple(reg, :re_reg)
+      assert :ok = ToolRegistryServer.unregister_tool(reg, :re_reg)
+      assert :ok = ToolRegistryServer.register_tool(reg, :re_reg, %{
+               description: "Re-registered",
+               parameters: %{type: "object", properties: %{}, required: []},
+               execute: fn _ -> {:ok, :again} end
+             })
+      assert {:ok, :again} = ToolRegistryServer.execute_tool(reg, :re_reg, %{})
+    end
+  end
+
+  describe "clear/1" do
+    test "removes all tools", %{registry: reg} do
+      register_simple(reg, :a)
+      register_simple(reg, :b)
+      register_simple(reg, :c)
+      assert length(ToolRegistryServer.list_tools(reg)) == 3
+      assert :ok = ToolRegistryServer.clear(reg)
+      assert ToolRegistryServer.list_tools(reg) == []
+    end
+
+    test "registry is functional after clear", %{registry: reg} do
+      register_simple(reg, :old)
+      assert :ok = ToolRegistryServer.clear(reg)
+      register_simple(reg, :new)
+      assert {:ok, :ok} = ToolRegistryServer.execute_tool(reg, :new, %{})
     end
   end
 
