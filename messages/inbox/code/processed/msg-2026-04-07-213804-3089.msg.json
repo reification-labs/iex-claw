@@ -1,0 +1,19 @@
+{
+  "expects_response": false,
+  "from": "project",
+  "id": "msg-2026-04-07-213804-3089",
+  "in_reply_to": null,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "## Build: ToolRegistry GenServer Codelet\n\nCreate a reusable ToolRegistry GenServer module at `lib/tool_registry.ex`. This is a codelet — a self-contained, drop-in component that other agents will `use` or start as a named process.\n\n### Public API\n\n```elixir\n# Register a tool definition\nToolRegistry.register_tool(name :: atom(), tool_def :: map()) :: :ok | {:error, :already_registered}\n\n# List all registered tool names\nToolRegistry.list_tools() :: [atom()]\n\n# Execute a tool by name with given params\nToolRegistry.execute_tool(name :: atom(), params :: map()) :: {:ok, result :: any()} | {:error, reason :: any()}\n\n# Describe all registered tools (name, description, parameter schema)\nToolRegistry.describe_tools() :: [%{name: atom(), description: String.t(), parameters: map()}]\n```\n\n### Tool Definition Shape\n\n```elixir\n%{\n  description: String.t(),\n  parameters: %{\n    type: \"object\",\n    properties: %{...},\n    required: [...]\n  },\n  execute: (params :: map() -> {:ok, any()} | {:error, any()})\n}\n```\n\n### Implementation Requirements\n\n1. **GenServer state**: `%{tools: %{atom() => tool_def_map()}}` — simple map lookup.\n\n2. **Crash isolation via Task.Supervisor**: `execute_tool/2` MUST spawn execution under a dedicated `Task.Supervisor` started in the `child_spec`. Use `Task.Supervisor.async_nolink/2` + `Task.yield/2` + `Task.shutdown/2` pattern. Do NOT use linked tasks. If the task crashes or times out, return `{:error, :execution_failed}` or `{:error, :timeout}` — never let it bring down the registry.\n\n3. **Telemetry events**: Emit `[:tool_registry, :tool_registered]` and `[:tool_registry, :tool_executed]` events with measurements (`:duration` in native time) and metadata (`:tool_name`, `:status` of `:ok | :error | :timeout`, `:result` or `:error`).\n\n4. **child_spec/1**: Accept options `[:name]` (default `__MODULE__`). The child spec must start both the GenServer AND a `Task.Supervisor` named `{registry_name, :task_supervisor}`. Use a `:rest_for_one` strategy so if the registry restarts, the task supervisor restarts with it.\n\n5. **Validation**: `register_tool/2` should validate the tool_def has required keys (`:description`, `:parameters`, `:execute`) and that `:execute` is a function. Return `{:error, {:invalid_tool_def, missing_keys}}` on failure.\n\n6. **Module attributes**: Define `@default_timeout 30_000` and use it in `execute_tool/2` (optionally accept a keyword list for timeout).\n\n### File structure\n\n- `lib/tool_registry.ex` — the GenServer\n- `test/tool_registry_test.exs` — comprehensive tests covering:\n  - Registration (valid, duplicate, invalid def)\n  - Listing and describing\n  - Execution (success, crash isolation, timeout)\n  - Telemetry event emission (use `:telemetry.attach` in test)\n  - child_spec integration\n\n### Style\n\n- Follow existing project conventions (read `mix.exs` and any existing lib files for style)\n- `@moduledoc` and `@doc` on all public functions\n- Typespecs where practical\n- No external dependencies beyond what's already in the project"
+    },
+    {
+      "kind": "text",
+      "text": "Context:\nThis is a new codelet being added to the project. Check mix.exs for existing deps and project structure. Look at any existing GenServer patterns in the codebase for style consistency."
+    }
+  ],
+  "task_id": "tool-registry-codelet",
+  "timestamp": "2026-04-07T21:38:04.349626Z",
+  "to": "code"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "msg-2026-04-07-211007-dc15",
+  "from": "clawd",
+  "to": "project",
+  "in_reply_to": null,
+  "task_id": "status-check-2026-04-07",
+  "timestamp": "2026-04-07T21:10:07Z",
+  "expects_response": true,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Project \u2014 status check from Conroy (via Clawd).\n\nSome things happened since last session (2026-04-05):\n\n1. The repo was extracted to reification-labs/iex-claw on GitHub.\n2. GitHub Actions CI was set up.\n3. First PR was merged.\n\nThat means TDD guardrails (mix project, CI) has partial progress now.\n\nAsk yourself: what is the single highest-leverage thing to do next? Then draft a concrete task for Code and send it to Code inbox. One task, clearly scoped.\n\nBe honest about what changed and what has not. The kanban may be stale.\n\n\u2014 Clawd (for Conroy)"
+    },
+    {
+      "kind": "directive",
+      "directive": "plan_next",
+      "text": "Reassess the hot queue given the GitHub/CI progress. Draft one scoped task for Code and send it to messages/inbox/code/."
+    }
+  ]
+}

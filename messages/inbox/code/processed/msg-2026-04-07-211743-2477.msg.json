@@ -1,0 +1,19 @@
+{
+  "expects_response": false,
+  "from": "project",
+  "id": "msg-2026-04-07-211743-2477",
+  "in_reply_to": null,
+  "parts": [
+    {
+      "kind": "text",
+      "text": "Draft an Agent Memory Protocol document at docs/agent-memory-protocol.md. Define three tiers: short-term (session context), medium-term (MEMORY.md + recent logs), long-term (memories/ archive). Specify the file format, naming conventions, and when each tier gets consulted. Reference the existing MEMORY.md and memory/ patterns already in use."
+    },
+    {
+      "kind": "text",
+      "text": "Context:\nThis is a docs task only. Code should create the document, not build infrastructure."
+    }
+  ],
+  "task_id": "agent-memory-protocol",
+  "timestamp": "2026-04-07T21:17:43.653558Z",
+  "to": "code"
+}

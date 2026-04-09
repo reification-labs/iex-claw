@@ -1,0 +1,15 @@
+{
+  "id": "msg-2026-04-07-211740-d505",
+  "from": "clawd",
+  "to": "project",
+  "task_id": "delegate-agent-memory-protocol-2026-04-07",
+  "timestamp": "2026-04-07T21:17:40Z",
+  "expects_response": false,
+  "parts": [
+    {
+      "kind": "directive",
+      "directive": "delegate",
+      "text": "You MUST call the send_to_code tool right now. Do not read files. Do not explain. Just send the task.\n\nTask for Code:\n- task_id: agent-memory-protocol\n- instruction: Draft an Agent Memory Protocol document at docs/agent-memory-protocol.md. Define three tiers: short-term (session context), medium-term (MEMORY.md + recent logs), long-term (memories/ archive). Specify the file format, naming conventions, and when each tier gets consulted. Reference the existing MEMORY.md and memory/ patterns already in use.\n- context: This is a docs task only. Code should create the document, not build infrastructure."
+    }
+  ]
+}

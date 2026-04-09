@@ -32,6 +32,7 @@ Code.require_file(Path.expand("../../lib/iex_claw/tools/edit_file.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tools/messages.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tools/agent_logger.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/tool_registry.ex", __DIR__))
+Code.require_file(Path.expand("../../lib/iex_claw/run_logger.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/llm_client.ex", __DIR__))
 Code.require_file(Path.expand("../../lib/iex_claw/agent.ex", __DIR__))
 
@@ -39,8 +40,8 @@ Code.require_file(Path.expand("../../lib/iex_claw/agent.ex", __DIR__))
 
 defmodule IExClaw.Agents.Goal.Constants do
   @moduledoc false
-  @home Path.expand("projects/iex-claw/agents/goal/")
-  @workplace Path.expand("projects/iex-claw/")
+  @home Path.expand("..", __DIR__)
+  @workplace Path.expand("../..", __DIR__)
 
   def home, do: @home
   def workplace, do: @workplace
@@ -460,7 +461,8 @@ defmodule IExClaw.Agents.Goal do
 
   defp load_soul_docs do
     IExClaw.Agent.load_soul_docs(Constants.home(), [
-      {Path.join(Constants.workplace(), "GOAL.md"), "GOAL.md (THE NORTH STAR)"}
+      {Path.join(Constants.workplace(), "GOAL.md"), "GOAL.md (THE NORTH STAR)"},
+      {Path.join(Constants.workplace(), "AGENTS.md"), "AGENTS.md (SHARED PROTOCOLS)"}
     ])
   end
 
@@ -486,10 +488,11 @@ defmodule IExClaw.Agents.Goal do
     - write_file — free-form notes (rare; prefer render_verdict)
 
     ## Your Process (when consulted)
-    1. Read the proposal carefully.
-    2. Read GOAL.md. Hold the North Star clearly in mind.
-    3. If the proposal references files (code, tasks, artifacts), read them.
-    4. Ask your five questions:
+    1. Read the module map: `agents/map/maps/lib-iex-claw-modules.md` — know the project structure before reading files.
+    2. Read the proposal carefully.
+    3. Read GOAL.md. Hold the North Star clearly in mind.
+    4. If the proposal references files (code, tasks, artifacts), read only those specific files.
+    5. Ask your five questions:
        a. Does this move toward the North Star, or away?
        b. Is this a goal, or a todo in disguise?
        c. What's the smallest form that would align?

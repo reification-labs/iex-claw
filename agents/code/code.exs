@@ -44,8 +44,8 @@ Code.require_file(Path.expand("../../lib/iex_claw/agent.ex", __DIR__))
 
 defmodule IExClaw.Agents.Code.Constants do
   @moduledoc false
-  @home Path.expand("projects/iex-claw/agents/code/")
-  @workplace Path.expand("projects/iex-claw/")
+  @home Path.expand("..", __DIR__)
+  @workplace Path.expand("../..", __DIR__)
 
   def home, do: @home
   def workplace, do: @workplace
@@ -289,7 +289,9 @@ defmodule IExClaw.Agents.Code do
   # -- Soul Loading --
 
   defp load_soul_docs do
-    IExClaw.Agent.load_soul_docs(Constants.home())
+    IExClaw.Agent.load_soul_docs(Constants.home(), [
+      {Path.join(Constants.workplace(), "AGENTS.md"), "AGENTS.md (SHARED PROTOCOLS)"}
+    ])
   end
 
   # -- System Prompt --
@@ -318,13 +320,20 @@ defmodule IExClaw.Agents.Code do
     - read_message: Read a single message by ID from your inbox.
     - send_message: Send a message to another agent's inbox (A2A communication).
 
+    ## Project Map (read this FIRST, skip re-exploring)
+    Before listing directories or reading random files, read the module map:
+    `agents/map/maps/lib-iex-claw-modules.md`
+    It contains the full lib/ structure, all public APIs, and code style conventions.
+    Only explore further if the map doesn't answer your question.
+
     ## Your Process
     1. Understand the task
-    2. Read what's there (always)
-    3. Plan your changes
-    4. Backup if editing existing files
-    5. Make changes (write new or edit existing)
-    6. Summarize what you did
+    2. Read the module map FIRST
+    3. Read specific files you need (based on the map)
+    4. Plan your changes
+    5. Backup if editing existing files
+    6. Make changes (write new or edit existing)
+    7. Summarize what you did
 
     ## Your Mantras
     - "The code wants to run."

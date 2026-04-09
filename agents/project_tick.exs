@@ -3,7 +3,9 @@
 # Project owns the clock. Project pumps its children.
 # "I want to give X a chance to decide what it needs to do."
 #
-# Children currently: Code, Goal.
+# Children: Project, Code, Goal.
+# Project goes first — it reads its inbox, thinks, and may send tasks
+# to Code/Goal. Then Code and Goal process whatever landed.
 # Each child is an InboxTickable wrapping its messages/inbox/<name>/ dir.
 #
 # Usage:
@@ -20,13 +22,16 @@
 System.put_env("IEXCLAW_SKIP_DEMO", "1")
 System.put_env("IEXCLAW_CODE_LIB", "1")
 System.put_env("IEXCLAW_GOAL_LIB", "1")
+System.put_env("IEXCLAW_PROJECT_LIB", "1")
 Code.require_file("tick.exs", __DIR__)
 Code.require_file("inbox_tick.exs", __DIR__)
+Code.require_file("project/project.exs", __DIR__)
 Code.require_file("code/code.exs", __DIR__)
 Code.require_file("goal/goal.exs", __DIR__)
 
 defmodule IExClaw.ProjectTick do
   @home Path.expand("../../iex-claw", __DIR__)
+  @project_inbox Path.join(@home, "messages/inbox/project")
   @code_inbox Path.join(@home, "messages/inbox/code")
   @goal_inbox Path.join(@home, "messages/inbox/goal")
 
@@ -48,8 +53,17 @@ defmodule IExClaw.ProjectTick do
   end
 
   defp build_children(dry_run?) do
+    project_fn = if dry_run?, do: dry_fn("project"), else: live_fn(:project)
     code_fn = if dry_run?, do: dry_fn("code"), else: live_fn(:code)
     goal_fn = if dry_run?, do: dry_fn("goal"), else: live_fn(:goal)
+
+    project_state =
+      IExClaw.InboxTickable.new(
+        name: "project",
+        inbox: @project_inbox,
+        process_fn: project_fn,
+        move?: not dry_run?
+      )
 
     code_state =
       IExClaw.InboxTickable.new(
@@ -68,6 +82,7 @@ defmodule IExClaw.ProjectTick do
       )
 
     [
+      {:project, IExClaw.InboxTickable, project_state},
       {:code, IExClaw.InboxTickable, code_state},
       {:goal, IExClaw.InboxTickable, goal_state}
     ]
@@ -133,6 +148,18 @@ defmodule IExClaw.ProjectTick do
       [DRY RUN #{name}] would handle #{Path.basename(path)}
       task: #{String.slice(task, 0, 120)}
       """
+    end
+  end
+
+  defp live_fn(:project) do
+    fn _n, path, body ->
+      IO.puts("\n     → Project.handle_message/3 on #{Path.basename(path)}...")
+
+      try do
+        IExClaw.Agents.Project.handle_message("project", path, body)
+      rescue
+        e -> "💥 project crashed: #{Exception.message(e)}"
+      end
     end
   end
 
