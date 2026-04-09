@@ -15,3 +15,5 @@ deps/
 # Agent message inbox (runtime DIRT bus)
 messages/inbox/*
 !messages/inbox/.gitkeep
+
+backup/
